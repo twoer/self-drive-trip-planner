@@ -7,7 +7,7 @@
           "from": "合肥",
           "to": "岳阳",
           "distance_km": 593.1,
-          "duration_min": 393,
+          "duration_min": 384,
           "toll_cny": 292.0,
           "polyline": [
             [
@@ -18158,7 +18158,7 @@
       "notes": [],
       "title": "合肥 → 岳阳",
       "distance_km": 593.1,
-      "duration_min": 393,
+      "duration_min": 384,
       "toll_cny": 292.0,
       "estimated": false
     },
@@ -18169,7 +18169,7 @@
           "from": "岳阳",
           "to": "韶山",
           "distance_km": 207.5,
-          "duration_min": 139,
+          "duration_min": 143,
           "toll_cny": 112.0,
           "polyline": [
             [
@@ -25932,7 +25932,7 @@
       "notes": [],
       "title": "岳阳 → 韶山",
       "distance_km": 207.5,
-      "duration_min": 139,
+      "duration_min": 143,
       "toll_cny": 112.0,
       "estimated": false
     },
@@ -25943,7 +25943,7 @@
           "from": "韶山",
           "to": "凤凰古城",
           "distance_km": 372.4,
-          "duration_min": 256,
+          "duration_min": 252,
           "toll_cny": 209.0,
           "polyline": [
             [
@@ -41598,7 +41598,7 @@
       "notes": [],
       "title": "韶山 → 凤凰古城",
       "distance_km": 372.4,
-      "duration_min": 256,
+      "duration_min": 252,
       "toll_cny": 209.0,
       "estimated": false
     },
@@ -41609,7 +41609,7 @@
           "from": "凤凰古城",
           "to": "荔波",
           "distance_km": 413.8,
-          "duration_min": 273,
+          "duration_min": 278,
           "toll_cny": 370.0,
           "polyline": [
             [
@@ -61516,7 +61516,7 @@
       "notes": [],
       "title": "凤凰古城 → 荔波",
       "distance_km": 413.8,
-      "duration_min": 273,
+      "duration_min": 278,
       "toll_cny": 370.0,
       "estimated": false
     },
@@ -61527,7 +61527,7 @@
           "from": "荔波",
           "to": "小七孔",
           "distance_km": 33.1,
-          "duration_min": 59,
+          "duration_min": 57,
           "toll_cny": 0.0,
           "polyline": [
             [
@@ -63966,7 +63966,7 @@
           "from": "小七孔",
           "to": "中国天眼",
           "distance_km": 197.4,
-          "duration_min": 170,
+          "duration_min": 167,
           "toll_cny": 118.0,
           "polyline": [
             [
@@ -75069,7 +75069,7 @@
           "from": "中国天眼",
           "to": "安顺",
           "distance_km": 190.8,
-          "duration_min": 171,
+          "duration_min": 170,
           "toll_cny": 89.0,
           "polyline": [
             [
@@ -84240,7 +84240,7 @@
       "notes": [],
       "title": "荔波 → 小七孔 → 中国天眼 → 安顺",
       "distance_km": 421.3,
-      "duration_min": 400,
+      "duration_min": 394,
       "toll_cny": 207.0,
       "estimated": false
     },
@@ -84250,7 +84250,7 @@
         {
           "from": "安顺",
           "to": "黄果树",
-          "distance_km": 51.0,
+          "distance_km": 51.1,
           "duration_min": 55,
           "toll_cny": 20.0,
           "polyline": [
@@ -86743,68 +86743,44 @@
               25.972505
             ],
             [
-              105.657968,
-              25.972505
-            ],
-            [
-              105.657695,
-              25.972543
-            ],
-            [
-              105.657604,
-              25.972521
-            ],
-            [
-              105.657604,
-              25.972521
-            ],
-            [
-              105.657571,
-              25.972564
-            ],
-            [
-              105.657523,
-              25.972671
-            ],
-            [
-              105.657523,
-              25.972779
-            ],
-            [
-              105.65755,
-              25.972843
-            ],
-            [
-              105.65755,
-              25.972843
+              105.657861,
+              25.972167
             ],
             [
               105.657652,
-              25.972891
+              25.971679
             ],
             [
-              105.657775,
-              25.972897
+              105.657475,
+              25.971261
             ],
             [
-              105.657861,
-              25.97287
+              105.657475,
+              25.971261
             ],
             [
-              105.657952,
-              25.972806
+              105.657561,
+              25.971304
             ],
             [
-              105.658221,
-              25.972548
+              105.657684,
+              25.971416
             ],
             [
-              105.658537,
-              25.972382
+              105.65792,
+              25.971679
             ],
             [
-              105.658569,
-              25.972344
+              105.658006,
+              25.971776
+            ],
+            [
+              105.658253,
+              25.972065
+            ],
+            [
+              105.658376,
+              25.972194
             ],
             [
               105.658569,
@@ -92812,7 +92788,7 @@
       ],
       "notes": [],
       "title": "安顺 → 黄果树 → 贵阳",
-      "distance_km": 182.0,
+      "distance_km": 182.1,
       "duration_min": 159,
       "toll_cny": 86.0,
       "estimated": false
@@ -101499,7 +101475,7 @@
           "from": "茅台镇红军桥",
           "to": "遵义会议遗址",
           "distance_km": 79.7,
-          "duration_min": 82,
+          "duration_min": 80,
           "toll_cny": 63.0,
           "polyline": [
             [
@@ -106370,7 +106346,7 @@
           "from": "遵义会议遗址",
           "to": "重庆",
           "distance_km": 257.7,
-          "duration_min": 185,
+          "duration_min": 183,
           "toll_cny": 198.0,
           "polyline": [
             [
@@ -117085,7 +117061,7 @@
       "notes": [],
       "title": "贵阳 → 茅台镇红军桥 → 遵义会议遗址 → 重庆",
       "distance_km": 506.3,
-      "duration_min": 385,
+      "duration_min": 381,
       "toll_cny": 392.0,
       "estimated": false
     },
@@ -117108,7 +117084,7 @@
           "from": "重庆",
           "to": "合肥",
           "distance_km": 1220.9,
-          "duration_min": 831,
+          "duration_min": 830,
           "toll_cny": 720.0,
           "polyline": [
             [
@@ -160819,14 +160795,14 @@
       "notes": [],
       "title": "重庆 → 合肥",
       "distance_km": 1220.9,
-      "duration_min": 831,
+      "duration_min": 830,
       "toll_cny": 720.0,
       "estimated": false
     }
   ],
   "totals": {
-    "distance_km": 3917.3,
-    "duration_min": 2836,
+    "distance_km": 3917.4,
+    "duration_min": 2821,
     "toll_cny": 2388.0
   },
   "title": "Self-Drive Trip Planner Demo",

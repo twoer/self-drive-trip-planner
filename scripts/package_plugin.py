@@ -56,6 +56,10 @@ PLUGIN_JSON = {
             "Generate a no-key estimated road-trip preview and report warnings.",
         ],
         "brandColor": "#2C6BB2",
+        "screenshots": [
+            "./assets/screenshot-desktop.png",
+            "./assets/screenshot-mobile.png",
+        ],
     },
 }
 
@@ -103,6 +107,10 @@ def build_plugin(out_dir: Path, zip_path: Path | None = None) -> tuple[Path, Pat
         src = ROOT / rel_path
         if src.exists():
             copy_tree(src, skill_dir / rel_path)
+
+    assets_dir = ROOT / "assets"
+    if assets_dir.exists():
+        copy_tree(assets_dir, plugin_dir / "assets")
 
     readme = ROOT / "README.md"
     if readme.exists():
