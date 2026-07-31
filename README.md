@@ -49,7 +49,9 @@ Then ask Codex to use `$self-drive-trip-planner` with an itinerary.
 
 Download the latest packaged plugin from GitHub Releases:
 
-[self-drive-trip-planner-plugin.zip](https://github.com/twoer/self-drive-trip-planner/releases/download/v0.1.0/self-drive-trip-planner-plugin.zip)
+[self-drive-trip-planner-plugin.zip](https://github.com/twoer/self-drive-trip-planner/releases/download/v0.1.1/self-drive-trip-planner-plugin.zip)
+
+For a step-by-step setup guide, see [INSTALL.md](INSTALL.md).
 
 Install this repository into your personal Codex plugin marketplace:
 

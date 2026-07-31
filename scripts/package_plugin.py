@@ -16,7 +16,7 @@ PLUGIN_NAME = "self-drive-trip-planner"
 
 PLUGIN_JSON = {
     "name": PLUGIN_NAME,
-    "version": "0.1.0",
+    "version": "0.1.1",
     "description": "Generate agent-verifiable Chinese self-drive trip plans with route data, HTML, maps, and manifests.",
     "author": {
         "name": "twoer",
@@ -121,9 +121,10 @@ def build_plugin(out_dir: Path, zip_path: Path | None = None) -> tuple[Path, Pat
     if assets_dir.exists():
         copy_tree(assets_dir, plugin_dir / "assets")
 
-    readme = ROOT / "README.md"
-    if readme.exists():
-        shutil.copy2(readme, plugin_dir / "README.md")
+    for rel_path in ("README.md", "INSTALL.md"):
+        src = ROOT / rel_path
+        if src.exists():
+            shutil.copy2(src, plugin_dir / rel_path)
 
     if zip_path is None:
         zip_path = out_dir / f"{PLUGIN_NAME}-plugin.zip"

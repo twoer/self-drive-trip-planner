@@ -94,7 +94,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Install self-drive-trip-planner as a local Codex plugin.")
     parser.add_argument("--marketplace", default=str(DEFAULT_MARKETPLACE), help="Personal marketplace JSON path.")
     parser.add_argument("--plugin-parent", default=str(DEFAULT_PLUGIN_PARENT), help="Directory that stores local plugins.")
-    parser.add_argument("--build-dir", default="dist", help="Temporary build output directory.")
+    parser.add_argument("--build-dir", default="dist/local-plugin-install", help="Temporary build output directory.")
     parser.add_argument("--skip-codex-add", action="store_true", help="Update files only; do not call codex plugin add.")
     args = parser.parse_args()
 
