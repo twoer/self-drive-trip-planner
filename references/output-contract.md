@@ -12,6 +12,7 @@ Modes `auto`, `estimate`, and `accurate` write:
   trip.html
   manifest.json
   route-map.png | route-map.svg
+  trip.pdf (optional, only with --pdf)
 ```
 
 - `trip-data.json`: normalized route data, metrics, source metadata, map metadata.
@@ -19,6 +20,7 @@ Modes `auto`, `estimate`, and `accurate` write:
 - `manifest.json`: machine-readable run summary, file contract, data source, counts, totals, and warnings.
 - `route-map.png`: optional Playwright screenshot of the Leaflet map when available.
 - `route-map.svg`: schematic fallback when PNG generation is unavailable.
+- `trip.pdf`: optional PDF export when `--pdf` is requested and Playwright is available.
 
 Mode `publish-demo` writes the same contract, except the HTML entry is
 `index.html` so the output directory can be served directly by GitHub Pages:
@@ -57,12 +59,25 @@ It skips HTML and map image generation.
     "data": "trip-data.json",
     "manifest": "manifest.json",
     "html": "trip.html",
-    "map_image": "route-map.png"
+    "map_image": "route-map.png",
+    "pdf": "trip.pdf"
   },
   "map": {
     "file": "route-map.png",
     "source": "leaflet-playwright-screenshot",
     "fallback": false
+  },
+  "budget": {
+    "currency": "CNY",
+    "configured": true,
+    "total_cny": 7344.5,
+    "category_totals": {
+      "toll": 2444.0,
+      "vehicle_energy": 940.5,
+      "hotel": 2700.0,
+      "meal": 1000.0,
+      "attraction": 260.0
+    }
   },
   "totals": {
     "distance_km": 3918.7,
@@ -87,5 +102,6 @@ After running the script:
 - Verify every non-null file in `manifest.files` exists.
 - Read `manifest.data_source`, `manifest.source_counts`, and `manifest.warnings`.
 - Summarize `manifest.totals` and the output directory.
+- If `manifest.budget.configured` is true, summarize `manifest.budget.total_cny`; otherwise mention that the cost tab contains an activation reminder.
 - If `manifest.warnings` is non-empty, include the warnings in the final response.
 - If `mode` is `accurate` or `publish-demo`, treat a non-zero CLI exit code as a failed run even when partial files exist.

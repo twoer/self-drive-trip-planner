@@ -6,7 +6,7 @@ Use this file as the copy/paste source when preparing an external plugin or mark
 
 - Name: Self-Drive Trip Planner
 - Plugin ID: `self-drive-trip-planner`
-- Version: `0.1.2`
+- Version: `0.2.0`
 - Developer: twoer
 - Category: Productivity
 - Repository: https://github.com/twoer/self-drive-trip-planner
@@ -26,8 +26,9 @@ Self-Drive Trip Planner turns compact D1/D2 Chinese road-trip text into normaliz
 ## Starter Prompts
 
 - Use my D1/D2 road-trip text to generate JSON, HTML, map, and manifest.
+- Generate a self-drive trip with EV charging, hotel, meal, and attraction budget.
+- Export the generated self-drive itinerary as a PDF.
 - Create an accurate Amap-backed self-drive itinerary from this route.
-- Generate a no-key estimated road-trip preview and report warnings.
 
 ## Data And Privacy
 
@@ -59,7 +60,7 @@ Self-Drive Trip Planner turns compact D1/D2 Chinese road-trip text into normaliz
 
 Download the plugin package:
 
-https://github.com/twoer/self-drive-trip-planner/releases/download/v0.1.2/self-drive-trip-planner-plugin.zip
+https://github.com/twoer/self-drive-trip-planner/releases/download/v0.2.0/self-drive-trip-planner-plugin.zip
 
 ## Pre-Submission Checklist
 

@@ -16,7 +16,7 @@ PLUGIN_NAME = "self-drive-trip-planner"
 
 PLUGIN_JSON = {
     "name": PLUGIN_NAME,
-    "version": "0.1.2",
+    "version": "0.2.0",
     "description": "Generate agent-verifiable Chinese self-drive trip plans with route data, HTML, maps, and manifests.",
     "author": {
         "name": "twoer",
@@ -54,8 +54,9 @@ PLUGIN_JSON = {
         "termsOfServiceURL": "https://twoer.github.io/self-drive-trip-planner/terms.html",
         "defaultPrompt": [
             "Use my D1/D2 road-trip text to generate JSON, HTML, map, and manifest.",
+            "Generate a self-drive trip with EV charging, hotel, meal, and attraction budget.",
+            "Export the generated self-drive itinerary as a PDF.",
             "Create an accurate Amap-backed self-drive itinerary from this route.",
-            "Generate a no-key estimated road-trip preview and report warnings.",
         ],
         "brandColor": "#2C6BB2",
         "screenshots": [

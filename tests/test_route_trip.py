@@ -121,6 +121,81 @@ D3
             chongqing_to_hefei = next(leg for leg in legs if leg["from"] == "重庆" and leg["to"] == "合肥")
             self.assertGreater(chongqing_to_hefei["distance_km"], 1000)
             self.assertNotIn(100.0, [leg["distance_km"] for leg in legs])
+            html = (output_dir / "trip.html").read_text(encoding="utf-8")
+            self.assertIn("费用计算未启用", html)
+            self.assertIn("data-tab=\"budget\"", html)
+            self.assertFalse(data["budget"]["configured"])
+            self.assertIn("budget", manifest)
+
+    def test_budget_arguments_generate_cost_tab_details(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            output_dir = Path(tmp) / "trip-output"
+            subprocess.run(
+                [
+                    sys.executable,
+                    str(SCRIPT),
+                    str(ROOT / "examples" / "simple-trip.txt"),
+                    "--out",
+                    str(output_dir),
+                    "--title",
+                    "预算 Demo",
+                    "--no-api",
+                    "--vehicle-type",
+                    "ev",
+                    "--ev-kwh-price",
+                    "1.5",
+                    "--hotel-nightly",
+                    "300",
+                    "--meal-daily",
+                    "100",
+                    "--attraction",
+                    "小七孔=120",
+                    "--attraction",
+                    "中国天眼=140",
+                ],
+                check=True,
+                text=True,
+                capture_output=True,
+            )
+
+            data = json.loads((output_dir / "trip-data.json").read_text(encoding="utf-8"))
+            manifest = json.loads((output_dir / "manifest.json").read_text(encoding="utf-8"))
+            html = (output_dir / "trip.html").read_text(encoding="utf-8")
+            budget = data["budget"]
+
+            self.assertTrue(budget["configured"])
+            self.assertGreater(budget["total_cny"], data["totals"]["toll_cny"])
+            self.assertIn("vehicle_energy", budget["category_totals"])
+            self.assertEqual(budget["assumptions"]["vehicle"]["kwh_per_100km"], 16.0)
+            self.assertEqual(budget["category_totals"]["hotel"], 2700.0)
+            self.assertEqual(budget["category_totals"]["meal"], 1000.0)
+            self.assertEqual(budget["category_totals"]["attraction"], 260.0)
+            self.assertEqual(manifest["budget"]["total_cny"], budget["total_cny"])
+            self.assertIn("费用预估", html)
+            self.assertIn("小七孔", html)
+
+    def test_data_only_pdf_request_reports_warning(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            output_dir = Path(tmp) / "trip-output"
+            subprocess.run(
+                [
+                    sys.executable,
+                    str(SCRIPT),
+                    str(ROOT / "examples" / "simple-trip.txt"),
+                    "--out",
+                    str(output_dir),
+                    "--mode",
+                    "data-only",
+                    "--pdf",
+                ],
+                check=True,
+                text=True,
+                capture_output=True,
+            )
+
+            manifest = json.loads((output_dir / "manifest.json").read_text(encoding="utf-8"))
+            self.assertIsNone(manifest["files"]["pdf"])
+            self.assertTrue(any("PDF" in warning for warning in manifest["warnings"]))
 
     def test_fallback_svg_when_playwright_unavailable(self):
         """When Playwright is unavailable, a route-map.svg fallback is produced."""

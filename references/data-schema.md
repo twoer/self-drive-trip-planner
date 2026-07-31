@@ -33,6 +33,31 @@ Use this normalized JSON shape between parsing, enrichment, and rendering.
     "distance_km": 600.0,
     "duration_min": 420,
     "toll_cny": 300.0
+  },
+  "budget": {
+    "currency": "CNY",
+    "configured": true,
+    "total_cny": 1046.0,
+    "category_totals": {
+      "toll": 300.0,
+      "vehicle_energy": 96.0,
+      "hotel": 300.0,
+      "meal": 100.0,
+      "attraction": 250.0
+    },
+    "items": [
+      {
+        "category": "vehicle_energy",
+        "label": "电车补能",
+        "amount_cny": 96.0,
+        "detail": "64.0 度 × ¥1/度"
+      }
+    ],
+    "assumptions": {
+      "trip_days": 2,
+      "distance_km": 600.0
+    },
+    "warnings": []
   }
 }
 ```
@@ -46,3 +71,4 @@ Rules:
 - Keep route metrics numeric in JSON. Add units only in HTML/SVG labels.
 - Use `estimated: true` when any metric is approximated.
 - Keep original place names from the user unless a map API returns a clearly better formatted name and the user has asked for cleanup.
+- Keep budget amounts numeric in CNY. If no budget inputs are provided, set `budget.configured` to `false` and let the HTML cost tab show an activation reminder.

@@ -35,6 +35,52 @@ open trip-output/trip.html
 Without a map API key, the demo uses estimated route metrics and records warnings
 in `trip-output/manifest.json`.
 
+## Budget Inputs
+
+The generated HTML always includes a `费用` tab. If you do not provide budget
+inputs, that tab shows an activation reminder.
+
+Add budget inputs when running the CLI:
+
+```bash
+.venv/bin/python scripts/route_trip.py examples/simple-trip.txt \
+  --out ./trip-output \
+  --mode estimate \
+  --vehicle-type ev \
+  --ev-kwh-price 1.5 \
+  --hotel-nightly 300 \
+  --meal-daily 100 \
+  --attraction 小七孔=120 \
+  --attraction 中国天眼=140
+```
+
+Budget options:
+
+- `--vehicle-type ev`
+- `--ev-kwh-price 1.5`
+- `--ev-kwh-per-100km 16`; defaults to 16 when EV price is provided
+- `--hotel-nightly 300`
+- `--hotel-nights 9`; defaults to trip days minus one
+- `--meal-daily 100`
+- `--meal-days 10`; defaults to trip day count
+- `--attraction 名称=金额`; repeatable
+- `--misc-fee 名称=金额`; repeatable
+
+The estimate includes route tolls from the route data when available.
+
+## PDF Export
+
+PDF export uses Playwright to print the generated HTML:
+
+```bash
+make install-pdf
+make demo-pdf
+```
+
+The PDF is written to `trip-output/trip.pdf`. If Playwright is unavailable, the
+HTML/JSON outputs are still generated and the PDF warning is recorded in
+`manifest.json`.
+
 ## Configure Amap
 
 For accurate route distance, duration, tolls, and map paths, create a Web Service

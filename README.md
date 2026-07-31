@@ -5,6 +5,8 @@ Codex skill for turning compact Chinese self-drive itinerary text into:
 - normalized `trip-data.json`
 - mobile-friendly Chinese itinerary HTML
 - interactive route map plus optional shareable PNG/SVG image
+- optional rough budget estimate and cost tab
+- optional PDF export
 - clearly marked estimated fallback output when no map API key is available
 - machine-readable `manifest.json` so agents can verify files, warnings, and data source
 
@@ -52,7 +54,7 @@ Then ask Codex to use `$self-drive-trip-planner` with an itinerary.
 
 Download the latest packaged plugin from GitHub Releases:
 
-[self-drive-trip-planner-plugin.zip](https://github.com/twoer/self-drive-trip-planner/releases/download/v0.1.2/self-drive-trip-planner-plugin.zip)
+[self-drive-trip-planner-plugin.zip](https://github.com/twoer/self-drive-trip-planner/releases/download/v0.2.0/self-drive-trip-planner-plugin.zip)
 
 For a step-by-step setup guide, see [INSTALL.md](INSTALL.md).
 
@@ -114,6 +116,34 @@ python3 scripts/route_trip.py examples/simple-trip.txt --out ./trip-output --tit
 ```
 
 `GAODE_KEY` is also supported.
+
+Run with a rough budget estimate:
+
+```bash
+python3 scripts/route_trip.py examples/simple-trip.txt \
+  --out ./trip-output \
+  --title "Demo 自驾游" \
+  --mode estimate \
+  --vehicle-type ev \
+  --ev-kwh-price 1.5 \
+  --hotel-nightly 300 \
+  --meal-daily 100 \
+  --attraction 小七孔=120 \
+  --attraction 中国天眼=140
+```
+
+If no budget inputs are provided, the generated `费用` tab shows an activation
+reminder instead of pretending to calculate a total trip budget.
+
+Export a PDF when Playwright is installed:
+
+```bash
+make install-pdf
+make demo-pdf
+```
+
+When Playwright is missing, PDF generation is skipped and the reason is written
+to `manifest.json`.
 
 Mode summary:
 

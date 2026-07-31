@@ -8,7 +8,7 @@ CODEX_SKILLS_DIR ?= $(HOME)/.codex/skills
 PLUGIN_CREATOR_DIR ?= $(HOME)/.codex/skills/.system/plugin-creator
 PLUGIN_VALIDATOR ?= $(PLUGIN_CREATOR_DIR)/scripts/validate_plugin.py
 
-.PHONY: install setup demo install-skill install-plugin test demo-estimate demo-api demo-data demo-batch pages-demo package-plugin check-plugin-package validate-plugin
+.PHONY: install install-pdf setup demo install-skill install-plugin test demo-estimate demo-api demo-data demo-pdf demo-batch pages-demo package-plugin check-plugin-package validate-plugin
 
 $(PYTHON):
 	$(BOOTSTRAP_PYTHON) -m venv $(VENV)
@@ -16,6 +16,10 @@ $(PYTHON):
 install: $(PYTHON)
 	$(PYTHON) -m pip install --upgrade pip
 	$(PYTHON) -m pip install -r requirements.txt
+
+install-pdf: install
+	$(PYTHON) -m pip install playwright
+	$(PYTHON) -m playwright install chromium
 
 setup: $(PYTHON)
 	$(PYTHON) scripts/setup_env.py
@@ -41,6 +45,9 @@ demo-api: install
 
 demo-data: install
 	$(PYTHON) scripts/route_trip.py examples/simple-trip.txt --out $(OUT) --title "$(TITLE)" --start-date $(START_DATE) --mode data-only
+
+demo-pdf: install
+	$(PYTHON) scripts/route_trip.py examples/simple-trip.txt --out $(OUT) --title "$(TITLE)" --start-date $(START_DATE) --mode estimate --pdf
 
 demo-batch: install
 	$(PYTHON) scripts/generate_demo_batch.py --count 20 --min-days 3 --max-days 30 --out trip-output/random-demo --mode auto

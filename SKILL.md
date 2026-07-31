@@ -17,6 +17,8 @@ description: Create agent-verifiable self-driving trip outputs from structured i
    - `--mode publish-demo` for GitHub Pages/static demo generation.
    - `--mode data-only` when only JSON/manifest outputs are needed.
 4. Generate a normalized `trip-data.json` and `manifest.json`. Read `references/output-contract.md` before changing output files or explaining the manifest.
+   - When budget inputs are provided, calculate a rough total budget and write it under `budget`.
+   - When no budget inputs are provided, keep `budget.configured=false` and show an activation reminder in the generated cost tab.
 5. Generate an interactive map showing the **real driving route**:
    - Embed a Leaflet map in `trip.html` using Amap raster tiles (no tile key needed); draw each leg's actual polyline from the routing API.
    - Color each leg by data source: blue for real API data, orange for estimates.
@@ -26,7 +28,7 @@ description: Create agent-verifiable self-driving trip outputs from structured i
    - Use the schematic SVG only as a fallback when network/polyline data are unavailable.
 6. Generate a mobile-first HTML itinerary page inspired by the user's reference style:
    - Header with trip title and route summary.
-   - Tabs for daily itinerary, route overview, toll summary, and total stats.
+   - Tabs for route overview, daily itinerary, and cost estimate.
    - Daily cards with each driving segment.
    - Lucide icons, compact cards, and Chinese labels.
 7. Embed the interactive map in the HTML. Link to `route-map.png` or `route-map.svg` when a static image exists.
@@ -109,4 +111,5 @@ Before finishing a trip output task:
 - Confirm `manifest.json` exists and every non-null file in `manifest.files` exists.
 - Confirm the HTML opens without build tooling when not using `--mode data-only`.
 - Confirm the route map file exists when not using `--mode data-only`. Prefer `route-map.png`; use `route-map.svg` only as a clearly disclosed fallback.
+- If `--pdf` is requested, confirm `trip.pdf` exists or report the PDF warning from `manifest.json`.
 - State `manifest.data_source`, totals, output directory, and every warning in `manifest.warnings`.

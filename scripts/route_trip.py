@@ -357,6 +357,203 @@ def money_label(value: float | int | None) -> str:
     return f"¥{int(round(float(value)))}"
 
 
+def unit_money_label(value: float | int | None) -> str:
+    if value is None:
+        return "待核实"
+    amount = float(value)
+    if amount.is_integer():
+        return f"¥{int(amount)}"
+    return f"¥{amount:.2f}".rstrip("0").rstrip(".")
+
+
+def parse_named_amount(value: str) -> dict[str, Any]:
+    """Parse CLI values like ``小七孔=120`` or ``门票:80``."""
+    raw = value.strip()
+    if not raw:
+        raise argparse.ArgumentTypeError("empty fee item")
+    if "=" in raw:
+        name, amount = raw.split("=", 1)
+    elif ":" in raw:
+        name, amount = raw.split(":", 1)
+    elif "：" in raw:
+        name, amount = raw.split("：", 1)
+    else:
+        raise argparse.ArgumentTypeError(f"fee item must use NAME=AMOUNT: {value}")
+    name = name.strip()
+    if not name:
+        raise argparse.ArgumentTypeError(f"fee item name is empty: {value}")
+    try:
+        amount_value = float(amount.strip())
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(f"fee item amount must be numeric: {value}") from exc
+    if amount_value < 0:
+        raise argparse.ArgumentTypeError(f"fee item amount cannot be negative: {value}")
+    return {"name": name, "amount_cny": amount_value}
+
+
+def parse_non_negative_float(value: str) -> float:
+    try:
+        number = float(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(f"expected a numeric value: {value}") from exc
+    if number < 0:
+        raise argparse.ArgumentTypeError(f"value cannot be negative: {value}")
+    return number
+
+
+def parse_positive_float(value: str) -> float:
+    number = parse_non_negative_float(value)
+    if number <= 0:
+        raise argparse.ArgumentTypeError(f"value must be greater than 0: {value}")
+    return number
+
+
+def parse_non_negative_int(value: str) -> int:
+    try:
+        number = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(f"expected an integer value: {value}") from exc
+    if number < 0:
+        raise argparse.ArgumentTypeError(f"value cannot be negative: {value}")
+    return number
+
+
+def trip_day_count(data: dict[str, Any]) -> int:
+    max_day = 0
+    for day in data.get("days", []):
+        match = re.search(r"(\d+)", day.get("day", ""))
+        if match:
+            max_day = max(max_day, int(match.group(1)))
+    return max(max_day, len(data.get("days", [])))
+
+
+def budget_item(category: str, label: str, amount: float, detail: str = "", quantity: float | None = None,
+                unit_price: float | None = None) -> dict[str, Any]:
+    item: dict[str, Any] = {
+        "category": category,
+        "label": label,
+        "amount_cny": round(float(amount), 2),
+    }
+    if detail:
+        item["detail"] = detail
+    if quantity is not None:
+        item["quantity"] = round(float(quantity), 2)
+    if unit_price is not None:
+        item["unit_price_cny"] = round(float(unit_price), 2)
+    return item
+
+
+def build_budget(
+    data: dict[str, Any],
+    vehicle_type: str = "none",
+    ev_kwh_price: float | None = None,
+    ev_kwh_per_100km: float | None = None,
+    hotel_nightly: float | None = None,
+    hotel_nights: int | None = None,
+    meal_daily: float | None = None,
+    meal_days: int | None = None,
+    attractions: list[dict[str, Any]] | None = None,
+    misc_fees: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    totals = data.get("totals", {})
+    distance_km = float(totals.get("distance_km") or 0)
+    day_count = trip_day_count(data)
+    items: list[dict[str, Any]] = []
+    assumptions: dict[str, Any] = {
+        "trip_days": day_count,
+        "distance_km": round(distance_km, 1),
+    }
+    warnings: list[str] = []
+
+    toll_cny = float(totals.get("toll_cny") or 0)
+    if toll_cny:
+        items.append(budget_item("toll", "过路费", toll_cny, "来自路线数据"))
+
+    if vehicle_type == "ev":
+        if ev_kwh_price is not None and ev_kwh_per_100km is not None:
+            kwh = distance_km * ev_kwh_per_100km / 100
+            energy_amount = kwh * ev_kwh_price
+            assumptions["vehicle"] = {
+                "type": "ev",
+                "kwh_price_cny": ev_kwh_price,
+                "kwh_per_100km": ev_kwh_per_100km,
+                "estimated_kwh": round(kwh, 1),
+            }
+            items.append(
+                budget_item(
+                    "vehicle_energy",
+                    "电车补能",
+                    energy_amount,
+                    f"{round(kwh, 1)} 度 × {unit_money_label(ev_kwh_price)}/度",
+                    quantity=kwh,
+                    unit_price=ev_kwh_price,
+                )
+            )
+        else:
+            warnings.append("Vehicle is EV but --ev-kwh-price or --ev-kwh-per-100km is missing; energy cost skipped.")
+    elif vehicle_type != "none":
+        warnings.append(f"Unsupported vehicle type for budget: {vehicle_type}")
+
+    if hotel_nightly is not None:
+        nights = hotel_nights if hotel_nights is not None else max(day_count - 1, 0)
+        assumptions["hotel"] = {"nightly_cny": hotel_nightly, "nights": nights}
+        items.append(
+            budget_item("hotel", "住宿", hotel_nightly * nights, f"{nights} 晚 × {money_label(hotel_nightly)}/晚", quantity=nights, unit_price=hotel_nightly)
+        )
+
+    if meal_daily is not None:
+        days = meal_days if meal_days is not None else day_count
+        assumptions["meal"] = {"daily_cny": meal_daily, "days": days}
+        items.append(
+            budget_item("meal", "餐饮", meal_daily * days, f"{days} 天 × {money_label(meal_daily)}/天", quantity=days, unit_price=meal_daily)
+        )
+
+    for item in attractions or []:
+        items.append(budget_item("attraction", item["name"], item["amount_cny"], "景点费用"))
+
+    for item in misc_fees or []:
+        items.append(budget_item("misc", item["name"], item["amount_cny"], "其他费用"))
+
+    category_totals: dict[str, float] = {}
+    for item in items:
+        category = str(item["category"])
+        category_totals[category] = round(category_totals.get(category, 0) + float(item["amount_cny"]), 2)
+
+    total_cny = round(sum(float(item["amount_cny"]) for item in items), 2)
+    configured = any(
+        value is not None and value != []
+        for value in (ev_kwh_price, ev_kwh_per_100km, hotel_nightly, meal_daily, attractions, misc_fees)
+    ) or vehicle_type != "none"
+    return {
+        "currency": "CNY",
+        "configured": bool(configured),
+        "total_cny": total_cny,
+        "category_totals": category_totals,
+        "items": items,
+        "assumptions": assumptions,
+        "warnings": warnings,
+    }
+
+
+def ensure_budget(data: dict[str, Any]) -> None:
+    if "budget" not in data:
+        data["budget"] = build_budget(data)
+
+
+BUDGET_CATEGORY_LABELS = {
+    "toll": "过路费",
+    "vehicle_energy": "补能",
+    "hotel": "住宿",
+    "meal": "餐饮",
+    "attraction": "景点",
+    "misc": "其他",
+}
+
+
+def budget_category_label(category: str) -> str:
+    return BUDGET_CATEGORY_LABELS.get(category, category)
+
+
 def flatten_route_points(data: dict[str, Any]) -> list[list[float]]:
     points: list[list[float]] = []
     for day in data["days"]:
@@ -1164,10 +1361,35 @@ def generate_route_map(data: dict[str, Any], out_dir: Path, key: str | None) -> 
         return None
 
 
+def generate_pdf(html_path: Path, pdf_path: Path) -> bool:
+    """Render the generated HTML to PDF with Playwright when available."""
+    try:
+        from playwright.sync_api import sync_playwright
+    except Exception as exc:
+        py = str(Path(sys.executable))
+        raise RuntimeError(f"Playwright is not installed; run `{py} -m pip install playwright && {py} -m playwright install chromium`.") from exc
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        page = browser.new_page(viewport={"width": 960, "height": 1280}, device_scale_factor=1)
+        page.goto("file://" + str(html_path.resolve()), wait_until="networkidle", timeout=60000)
+        page.emulate_media(media="print")
+        page.pdf(
+            path=str(pdf_path),
+            format="A4",
+            print_background=True,
+            margin={"top": "12mm", "right": "10mm", "bottom": "12mm", "left": "10mm"},
+        )
+        browser.close()
+    return pdf_path.is_file()
+
+
 def generate_html(data: dict[str, Any], path: Path, map_file: str | None = None) -> None:
+    ensure_budget(data)
     days_html = []
     overview_html = []
     dots_html = []
+    budget_rows = []
     start_date = parse_start_date(data.get("start_date"))
     for day in data["days"]:
         date_label = day_date_label(day["day"], start_date)
@@ -1233,6 +1455,47 @@ def generate_html(data: dict[str, Any], path: Path, map_file: str | None = None)
         )
 
     totals = data["totals"]
+    budget = data.get("budget") or {}
+    budget_total = float(budget.get("total_cny") or 0)
+    budget_configured = bool(budget.get("configured"))
+    for item in budget.get("items") or []:
+        detail = item.get("detail") or budget_category_label(str(item.get("category") or ""))
+        budget_rows.append(
+            f'''<div class="budget-row">
+  <div class="budget-left">
+    <div class="budget-label">{escape(item.get("label", ""))}</div>
+    <div class="budget-detail">{escape(detail)}</div>
+  </div>
+  <div class="budget-amount">{escape(money_label(item.get("amount_cny")))}</div>
+</div>'''
+        )
+    category_tiles = []
+    for category, amount in (budget.get("category_totals") or {}).items():
+        category_tiles.append(
+            f'''<div class="budget-chip"><span>{escape(budget_category_label(str(category)))}</span><strong>{escape(money_label(amount))}</strong></div>'''
+        )
+    if not budget_configured:
+        budget_panel = f'''<div class="activate-card">
+  <span class="activate-icon"><i data-lucide="calculator"></i></span>
+  <div class="activate-body">
+    <div class="activate-title">费用计算未启用</div>
+    <div class="activate-text">运行时加入电费、住宿、餐饮或景点费用参数后，这里会生成总预算和分项明细。</div>
+    <div class="activate-code">示例：--vehicle-type ev --ev-kwh-price 1.5 --ev-kwh-per-100km 16 --hotel-nightly 300 --meal-daily 100 --attraction 小七孔=120</div>
+  </div>
+</div>
+<div class="budget-muted">
+  <span class="ui-icon-text"><i data-lucide="banknote"></i><span>当前路线过路费参考：{escape(money_label(totals.get("toll_cny")))}</span></span>
+</div>'''
+    else:
+        budget_panel = f'''<div class="budget-summary">
+  <div>
+    <div class="budget-kicker">费用预估</div>
+    <div class="budget-total">{escape(money_label(budget_total))}</div>
+  </div>
+  <div class="budget-note">按当前输入参数粗略计算，实际价格请以预订和现场为准。</div>
+</div>
+<div class="budget-chips">{''.join(category_tiles)}</div>
+<div class="budget-list">{''.join(budget_rows)}</div>'''
     title = escape(data["title"])
     _sd = parse_start_date(data.get("start_date"))
     _range = trip_date_range(data["days"], _sd) if _sd else ""
@@ -1398,6 +1661,35 @@ svg {{ stroke-width: 2; }}
 .leaflet-container {{ font: inherit; }}
 .map-note {{ padding: 9px 4px 2px; font-size: 11px; color: var(--text2); text-align: center; }}
 .map-note a {{ color: var(--accent, #2c6bb2); }}
+.budget-summary, .activate-card {{
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 10px;
+}}
+.budget-summary {{ display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }}
+.budget-kicker {{ color: var(--text2); font-size: 12px; }}
+.budget-total {{ margin-top: 3px; color: var(--primary); font-size: 30px; font-weight: 900; line-height: 1.1; }}
+.budget-note {{ max-width: 210px; color: var(--text2); font-size: 11px; text-align: right; }}
+.budget-chips {{ display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px; }}
+.budget-chip {{ display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; background: #FFFFFF; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; color: var(--text2); font-size: 12px; }}
+.budget-chip strong {{ color: var(--accent); font-size: 13px; white-space: nowrap; }}
+.budget-list {{ display: grid; gap: 8px; }}
+.budget-row {{ display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; }}
+.budget-left {{ min-width: 0; }}
+.budget-label {{ font-weight: 800; font-size: 14px; word-break: break-word; }}
+.budget-detail {{ margin-top: 2px; color: var(--text2); font-size: 11px; word-break: break-word; }}
+.budget-amount {{ color: var(--accent); font-size: 16px; font-weight: 900; white-space: nowrap; }}
+.activate-card {{ display: flex; align-items: flex-start; gap: 12px; }}
+.activate-icon {{ width: 34px; height: 34px; border-radius: 999px; background: color-mix(in srgb, var(--primary) 12%, white); color: var(--primary); display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }}
+.activate-icon svg {{ width: 18px; height: 18px; flex-shrink: 0; }}
+.activate-body {{ min-width: 0; }}
+.activate-title {{ font-size: 15px; font-weight: 900; color: var(--text); }}
+.activate-text {{ margin-top: 4px; color: var(--text2); font-size: 12px; }}
+.activate-code {{ margin-top: 10px; padding: 10px; border-radius: 8px; background: #F1F4F8; color: #445161; font-size: 11px; line-height: 1.55; word-break: break-word; }}
+.budget-muted {{ background: var(--card); border: 1px dashed #D6DEE8; border-radius: 8px; padding: 12px 14px; color: var(--text2); font-size: 12px; }}
+@media print {{ .tabs, .pager-actions, .pager-dots, .map-note {{ display: none !important; }} .tab-panel {{ display: block !important; break-inside: avoid; }} .app {{ max-width: none; }} body {{ background: #FFFFFF; }} }}
 </style>
 </head>
 <body>
@@ -1409,6 +1701,7 @@ svg {{ stroke-width: 2; }}
   <nav class="tabs" aria-label="行程视图">
     <button class="tab active" data-tab="overview">总览</button>
     <button class="tab" data-tab="daily">行程</button>
+    <button class="tab" data-tab="budget">费用</button>
   </nav>
   <main class="main">
     <section class="tab-panel active" id="tab-overview">
@@ -1434,6 +1727,9 @@ svg {{ stroke-width: 2; }}
         <div class="slider" id="daySlider">{''.join(days_html)}</div>
         <div class="pager-dots" id="pagerDots">{''.join(dots_html)}</div>
       </div>
+    </section>
+    <section class="tab-panel" id="tab-budget">
+      {budget_panel}
     </section>
   </main>
 </div>
@@ -1527,6 +1823,10 @@ def output_warnings(data: dict[str, Any], mode: str, key: str | None, map_file: 
         warnings.append("Map lookup errors occurred: " + " | ".join(lookup_errors))
     if data.get("map_png_error"):
         warnings.append(f'PNG map generation failed: {data["map_png_error"]}')
+    if data.get("pdf_error"):
+        warnings.append(f'PDF generation failed: {data["pdf_error"]}')
+    if data.get("budget", {}).get("warnings"):
+        warnings.extend(str(warning) for warning in data["budget"]["warnings"])
     if data.get("map", {}).get("fallback"):
         warnings.append("Static route image fell back to schematic SVG; the HTML still contains the interactive route map.")
     if mode != "data-only" and not map_file:
@@ -1543,6 +1843,7 @@ def build_manifest(
     key: str | None,
     html_file: str | None,
     map_file: str | None,
+    pdf_file: str | None,
 ) -> dict[str, Any]:
     counts = source_counts(data)
     if not counts:
@@ -1557,6 +1858,7 @@ def build_manifest(
         "manifest": "manifest.json",
         "html": html_file if html_file and (out_dir / html_file).exists() else None,
         "map_image": map_file,
+        "pdf": pdf_file if pdf_file and (out_dir / pdf_file).exists() else None,
     }
     totals = data.get("totals", {})
     legs = [leg for day in data["days"] for leg in day["legs"]]
@@ -1569,6 +1871,7 @@ def build_manifest(
         "source_counts": counts,
         "files": files,
         "map": data.get("map"),
+        "budget": data.get("budget"),
         "totals": totals,
         "counts": {
             "days": len(data["days"]),
@@ -1585,10 +1888,12 @@ def has_accuracy_failure(data: dict[str, Any]) -> bool:
     return any(leg.get("source") != "amap" or leg.get("estimated") or leg.get("lookup_error") for leg in legs)
 
 
-def write_outputs(data: dict[str, Any], out_dir: Path, key: str | None, mode: str = "auto") -> dict[str, Any]:
+def write_outputs(data: dict[str, Any], out_dir: Path, key: str | None, mode: str = "auto", pdf: bool = False) -> dict[str, Any]:
     out_dir.mkdir(parents=True, exist_ok=True)
+    ensure_budget(data)
     map_file = None
     html_file = None
+    pdf_file = None
     if mode != "data-only":
         # IMPORTANT: generate the map FIRST. generate_route_map() mutates
         # data["map"] (file/source/fallback), and that metadata must be present
@@ -1598,8 +1903,19 @@ def write_outputs(data: dict[str, Any], out_dir: Path, key: str | None, mode: st
     (out_dir / "trip-data.json").write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
     if mode != "data-only":
         html_file = "index.html" if mode == "publish-demo" else "trip.html"
-        generate_html(data, out_dir / html_file, map_file)
-    manifest = build_manifest(data, mode, out_dir, key, html_file, map_file)
+        html_path = out_dir / html_file
+        generate_html(data, html_path, map_file)
+        if pdf:
+            pdf_file = "trip.pdf"
+            try:
+                if not generate_pdf(html_path, out_dir / pdf_file):
+                    pdf_file = None
+            except Exception as exc:
+                data["pdf_error"] = str(exc)
+                pdf_file = None
+    elif pdf:
+        data["pdf_error"] = "Data-only mode skipped HTML, so PDF output was not generated."
+    manifest = build_manifest(data, mode, out_dir, key, html_file, map_file, pdf_file)
     (out_dir / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
     return manifest
 
@@ -1611,6 +1927,16 @@ def main() -> int:
     parser.add_argument("--title", default="自驾行程", help="Trip title used in generated outputs.")
     parser.add_argument("--start-date", default=None,
                         help="Departure date YYYY-MM-DD (e.g. 2026-07-17). When set, each day shows its calendar date and weekday.")
+    parser.add_argument("--pdf", action="store_true", help="Also generate trip.pdf from the HTML output when Playwright is available.")
+    parser.add_argument("--vehicle-type", choices=("none", "ev"), default="none", help="Vehicle type for budget calculation. Use ev for electric cars.")
+    parser.add_argument("--ev-kwh-price", type=parse_non_negative_float, default=None, help="EV charging price in CNY per kWh, e.g. 1.5.")
+    parser.add_argument("--ev-kwh-per-100km", type=parse_positive_float, default=None, help="EV consumption in kWh/100km. Defaults to 16 when EV price is provided.")
+    parser.add_argument("--hotel-nightly", type=parse_non_negative_float, default=None, help="Hotel cost in CNY per night, e.g. 300.")
+    parser.add_argument("--hotel-nights", type=parse_non_negative_int, default=None, help="Hotel nights. Defaults to trip days minus one.")
+    parser.add_argument("--meal-daily", type=parse_non_negative_float, default=None, help="Meal cost in CNY per day, e.g. 100.")
+    parser.add_argument("--meal-days", type=parse_non_negative_int, default=None, help="Meal days. Defaults to trip day count.")
+    parser.add_argument("--attraction", action="append", type=parse_named_amount, default=[], help="Attraction fee item, repeatable. Format: NAME=AMOUNT, e.g. 小七孔=120.")
+    parser.add_argument("--misc-fee", action="append", type=parse_named_amount, default=[], help="Other budget item, repeatable. Format: NAME=AMOUNT.")
     parser.add_argument(
         "--mode",
         choices=("auto", "estimate", "accurate", "publish-demo", "data-only"),
@@ -1649,8 +1975,26 @@ def main() -> int:
     start_date = parse_start_date(getattr(args, "start_date", None))
     if start_date:
         data["start_date"] = start_date.isoformat()
+    vehicle_type = args.vehicle_type
+    ev_kwh_per_100km = args.ev_kwh_per_100km
+    if args.ev_kwh_price is not None and vehicle_type == "none":
+        vehicle_type = "ev"
+    if vehicle_type == "ev" and args.ev_kwh_price is not None and ev_kwh_per_100km is None:
+        ev_kwh_per_100km = 16.0
+    data["budget"] = build_budget(
+        data,
+        vehicle_type=vehicle_type,
+        ev_kwh_price=args.ev_kwh_price,
+        ev_kwh_per_100km=ev_kwh_per_100km,
+        hotel_nightly=args.hotel_nightly,
+        hotel_nights=args.hotel_nights,
+        meal_daily=args.meal_daily,
+        meal_days=args.meal_days,
+        attractions=args.attraction,
+        misc_fees=args.misc_fee,
+    )
     out_dir = Path(args.out) if args.out else Path("docs" if mode == "publish-demo" else "trip-output")
-    manifest = write_outputs(data, out_dir, key, mode)
+    manifest = write_outputs(data, out_dir, key, mode, pdf=args.pdf)
 
     print(f"Wrote: {out_dir.resolve()}")
     print("Mode:", mode)
