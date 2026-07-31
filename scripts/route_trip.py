@@ -17,6 +17,10 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
+# Local helper: interactive Leaflet map (real driving route) + optional PNG.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import leaflet_map
+
 
 KNOWN_COORDS = {
     "合肥": (117.2272, 31.8206),
@@ -247,14 +251,85 @@ def summarize_day(day: dict[str, Any]) -> None:
     day["estimated"] = any(bool(leg.get("estimated")) for leg in day["legs"])
 
 
+def _round_to_step(value: float, step: int = 5) -> int:
+    """Round ``value`` to the nearest multiple of ``step`` (e.g. 5).
+
+    Used for display-friendly distances/durations: 593.1km -> 595km,
+    34 min -> 35 min. Applied only at the display layer; the stored data in
+    trip-data.json keeps its original precision.
+    """
+    if step <= 0:
+        return int(round(value))
+    return int(round(float(value) / step) * step)
+
+
+def distance_label(km: float | int) -> str:
+    """Display a distance rounded to the nearest 5 km (595km, not 593.1km)."""
+    return f"{_round_to_step(km, 5)}km"
+
+
 def duration_label(minutes: int) -> str:
+    # Round to nearest 5 min for readability (6h34m -> 6h35m).
+    minutes = _round_to_step(minutes, 5)
     hours = minutes // 60
     mins = minutes % 60
     if hours and mins:
-        return f"{hours}h{mins}m"
+        return f"{hours}h{mins:02d}m"
     if hours:
         return f"{hours}h"
     return f"{mins}m"
+
+
+WEEKDAY_LABELS = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
+
+
+def parse_start_date(value: str | None) -> Any:
+    """Parse a YYYY-MM-DD string into a date, or return None if invalid/empty."""
+    if not value:
+        return None
+    import datetime
+    try:
+        return datetime.date.fromisoformat(value)
+    except (ValueError, TypeError):
+        return None
+
+
+def day_date_label(day_label: str, start_date: Any) -> str:
+    """Return a calendar label for a day block, e.g. '7月17日 周四'.
+
+    ``day_label`` is like 'D5'; the offset is parsed from the number. When
+    ``start_date`` is None the function returns "" (no date shown).
+    """
+    if not start_date:
+        return ""
+    import datetime
+    m = re.search(r"(\d+)", day_label or "")
+    if not m:
+        return ""
+    offset = int(m.group(1)) - 1  # D1 is the start date itself
+    the_date = start_date + datetime.timedelta(days=offset)
+    weekday = WEEKDAY_LABELS[the_date.weekday()]
+    return f"{the_date.month}月{the_date.day}日 {weekday}"
+
+
+def trip_date_range(days: list[dict[str, Any]], start_date: Any) -> str:
+    """Return a compact trip date range like '7.17-7.26' or '' if no start date.
+
+    Uses the highest day number across all day blocks as the last day, so
+    stay-only days are counted too.
+    """
+    if not start_date:
+        return ""
+    import datetime
+    max_offset = 0
+    for day in days:
+        m = re.search(r"(\d+)", day.get("day", ""))
+        if m:
+            max_offset = max(max_offset, int(m.group(1)) - 1)
+    last_date = start_date + datetime.timedelta(days=max_offset)
+    if last_date == start_date:
+        return f"{start_date.month}.{start_date.day}"
+    return f"{start_date.month}.{start_date.day}-{last_date.month}.{last_date.day}"
 
 
 def money_label(value: float | int | None) -> str:
@@ -729,6 +804,117 @@ def static_map_markers(stops: list[dict[str, Any]]) -> str:
     return "|".join(marker_parts)
 
 
+# Marker colors used by static_map_markers (RGB tuples). Keep in sync with the
+# hex colors above so detection can locate the provider-drawn markers on the
+# downloaded static map image.
+MARKER_COLOR_START = (37, 148, 91)      # 0x25945B green (first stop)
+MARKER_COLOR_MID = (44, 107, 178)       # 0x2C6BB2 blue (intermediate stops)
+MARKER_COLOR_END = (210, 82, 64)        # 0xD25240 red (last stop)
+
+
+def _connected_components(image: Any, target: tuple[int, int, int], tol: int = 30,
+                           min_size: int = 100, max_size: int = 400) -> list[tuple[float, float]]:
+    """Find marker centroids of a given color in ``image`` via flood fill.
+
+    Returns centroids (x, y) of color blobs whose pixel count is within
+    [min_size, max_size] — the size range of Amap ``mid`` markers. Filters out
+    large map-background regions that merely happen to match the target color.
+    """
+    from PIL import Image  # noqa: F401  (image is already a PIL Image)
+
+    width, height = image.size
+    pixels = image.load()
+
+    def rgb(x: int, y: int) -> tuple[int, int, int]:
+        """Read a pixel as RGB regardless of the image mode (RGB or RGBA)."""
+        px = pixels[x, y]
+        return px[0], px[1], px[2]
+
+    visited = bytearray(width * height)
+    centroids: list[tuple[float, float]] = []
+    for start_y in range(height):
+        for start_x in range(width):
+            if visited[start_y * width + start_x]:
+                continue
+            r, g, b = rgb(start_x, start_y)
+            if not (abs(r - target[0]) < tol and abs(g - target[1]) < tol and abs(b - target[2]) < tol):
+                continue
+            stack = [(start_x, start_y)]
+            visited[start_y * width + start_x] = 1
+            blob: list[tuple[int, int]] = []
+            while stack:
+                x, y = stack.pop()
+                blob.append((x, y))
+                for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                    nx, ny = x + dx, y + dy
+                    if 0 <= nx < width and 0 <= ny < height and not visited[ny * width + nx]:
+                        visited[ny * width + nx] = 1
+                        rr, gg, bb = rgb(nx, ny)
+                        if abs(rr - target[0]) < tol and abs(gg - target[1]) < tol and abs(bb - target[2]) < tol:
+                            stack.append((nx, ny))
+            size = len(blob)
+            if min_size <= size <= max_size:
+                cx = sum(p[0] for p in blob) / size
+                cy = sum(p[1] for p in blob) / size
+                centroids.append((cx, cy))
+    return centroids
+
+
+def detect_marker_pixels(image: Any) -> tuple[tuple[float, float] | None, list[tuple[float, float]], tuple[float, float] | None]:
+    """Detect provider-drawn start/mid/end marker positions on the static map.
+
+    Returns (start_pixel, mid_pixels, end_pixel). Any of them may be missing
+    (``None`` / empty) if the provider did not render that color.
+    """
+    starts = _connected_components(image, MARKER_COLOR_START)
+    mids = _connected_components(image, MARKER_COLOR_MID)
+    ends = _connected_components(image, MARKER_COLOR_END)
+    return (starts[0] if starts else None, mids, ends[0] if ends else None)
+
+
+def _mercator_y(lat: float) -> float:
+    sin_lat = math.sin(math.radians(max(min(lat, 85.05112878), -85.05112878)))
+    return 0.5 - math.log((1 + sin_lat) / (1 - sin_lat)) / (4 * math.pi)
+
+
+def predict_stop_pixels(stops: list[dict[str, Any]],
+                        start_pixel: tuple[float, float],
+                        end_pixel: tuple[float, float]) -> list[tuple[float, float] | None]:
+    """Predict pixel position of every stop using a 2-anchor linear map.
+
+    Amap's static-map auto-fit lays the stop bounding box roughly linearly
+    across the image. Anchoring on the detected start (green) and end (red)
+    markers, every intermediate stop is interpolated by longitude (x) and
+    Mercator latitude (y). Empirically the error is ~1px, which is precise
+    enough to draw connecting segments between provider-drawn markers.
+    """
+    points = [stop.get("point") for stop in stops]
+    if not points or not points[0] or not points[-1]:
+        return [None] * len(stops)
+
+    start_lng = float(points[0]["lng"])
+    start_lat = float(points[0]["lat"])
+    end_lng = float(points[-1]["lng"])
+    end_lat = float(points[-1]["lat"])
+    start_my = _mercator_y(start_lat)
+    end_my = _mercator_y(end_lat)
+
+    result: list[tuple[float, float] | None] = []
+    for point in points:
+        if not point:
+            result.append(None)
+            continue
+        lng = float(point["lng"])
+        lat = float(point["lat"])
+        t_x = (lng - start_lng) / (end_lng - start_lng) if end_lng != start_lng else 0.5
+        my = _mercator_y(lat)
+        t_y = (my - start_my) / (end_my - start_my) if end_my != start_my else 0.5
+        px_x = start_pixel[0] + t_x * (end_pixel[0] - start_pixel[0])
+        px_y = start_pixel[1] + t_y * (end_pixel[1] - start_pixel[1])
+        result.append((px_x, px_y))
+    return result
+
+
 def render_labeled_map(
     data: dict[str, Any],
     content: bytes,
@@ -753,28 +939,70 @@ def render_labeled_map(
     end_name = all_stops[-1]["name"] if all_stops else ""
     totals = data["totals"]
 
-    title_line = f'{data["title"]} · 自驾线路图'
-    summary_line = f'起点 {start_name} · 终点 {end_name} · {totals["distance_km"]}km · {duration_label(int(totals["duration_min"]))} · {money_label(totals["toll_cny"])}'
-    panel_width = min(820, canvas[0] - 52)
-    row_height = 44
-    legend_row_height = 32
+    # ---- Route segments: detect provider-drawn markers, then connect stops ----
+    # Amap drew the markers (with correct auto-fit). We detect their pixel
+    # positions and draw straight segments between consecutive stops so the
+    # route spans the whole map instead of being squeezed by the broken
+    # paths+markers auto-fit. Segment color reflects data source: blue for real
+    # API data, orange for estimates.
+    start_pixel, _mid_pixels, end_pixel = detect_marker_pixels(image)
+    stop_pixels: list[tuple[float, float] | None] = []
+    if start_pixel and end_pixel and len(map_stops) >= 2:
+        stop_pixels = predict_stop_pixels(map_stops, start_pixel, end_pixel)
+    route_real_color = (44, 107, 178, 235)       # 0x2C6BB2 — real API data
+    route_estimate_color = (217, 112, 54, 235)   # 0xD97036 — estimated data
+    if len(stop_pixels) == len(map_stops):
+        # Walk every leg and draw a segment between its endpoints. Each leg's
+        # endpoints are resolved to the nearest map stop pixel so omitted stops
+        # still connect through their nearest labeled neighbor.
+        stop_point_to_pixel: dict[tuple[float, float], tuple[float, float]] = {}
+        for stop, pixel in zip(map_stops, stop_pixels):
+            if pixel and stop.get("point"):
+                key = (round(stop["point"]["lng"], 4), round(stop["point"]["lat"], 4))
+                stop_point_to_pixel[key] = pixel
+
+        def pixel_for(point: dict[str, float] | None) -> tuple[float, float] | None:
+            if not point:
+                return None
+            return stop_point_to_pixel.get((round(point["lng"], 4), round(point["lat"], 4)))
+
+        for day in data["days"]:
+            day_estimated = bool(day.get("estimated"))
+            color = route_estimate_color if day_estimated else route_real_color
+            for leg in day["legs"]:
+                a = pixel_for(leg.get("origin"))
+                b = pixel_for(leg.get("destination"))
+                if a and b:
+                    # White halo for contrast against any map background.
+                    draw.line([a, b], fill=(255, 255, 255, 180), width=6, joint="curve")
+                    draw.line([a, b], fill=color, width=3, joint="curve")
+
+    # ---- Summary panel (compact + translucent so underlying route stays visible) ----
+    _sd = parse_start_date(data.get("start_date"))
+    _range = trip_date_range(data["days"], _sd) if _sd else ""
+    _title_with_date = f"{data['title']} · {_range}" if _range else data["title"]
+    title_line = f'{_title_with_date} · 自驾线路图'
+    summary_line = f'起点 {start_name} · 终点 {end_name} · {distance_label(totals["distance_km"])} · {duration_label(int(totals["duration_min"]))} · {money_label(totals["toll_cny"])}'
+    panel_width = min(680, canvas[0] - 52)
+    row_height = 40
+    legend_row_height = 30
     omitted_note_height = 34 if omitted_stops else 0
-    panel_height = 130 + len(data["days"]) * row_height + 30 + len(map_stops) * legend_row_height + omitted_note_height
+    panel_height = 120 + len(data["days"]) * row_height + 28 + len(map_stops) * legend_row_height + omitted_note_height
     panel_box = (26, 26, 26 + panel_width, min(canvas[1] - 26, 26 + panel_height))
-    draw_round_label(draw, panel_box, (255, 255, 255, 240), (44, 107, 178, 210), width=3)
+    draw_round_label(draw, panel_box, (255, 255, 255, 205), (44, 107, 178, 200), width=3)
     draw.text((panel_box[0] + 22, panel_box[1] + 18), title_line, font=font_title, fill=(31, 41, 55, 255))
     draw.text((panel_box[0] + 22, panel_box[1] + 70), summary_line, font=font_small, fill=(75, 85, 99, 255))
-    separator_y = panel_box[1] + 112
+    separator_y = panel_box[1] + 108
     draw.line((panel_box[0] + 20, separator_y, panel_box[2] - 20, separator_y), fill=(222, 229, 237, 255), width=2)
     for row_index, day in enumerate(data["days"]):
-        y = separator_y + 12 + row_index * row_height
+        y = separator_y + 10 + row_index * row_height
         metrics = f'{duration_label(int(day["duration_min"]))} · {money_label(day["toll_cny"])}'
         metric_width = text_size(draw, metrics, font_row)[0]
-        route_x = panel_box[0] + 92
-        metric_x = panel_box[2] - 22 - metric_width
-        route = fit_text(draw, day["title"], font_row_bold, max(80, metric_x - route_x - 18))
-        draw.rounded_rectangle((panel_box[0] + 20, y + 2, panel_box[0] + 72, y + 34), radius=11, fill=(44, 107, 178, 255))
-        draw.text((panel_box[0] + 33, y + 6), day["day"], font=font_row_bold, fill=(255, 255, 255, 255))
+        route_x = panel_box[0] + 86
+        metric_x = panel_box[2] - 20 - metric_width
+        route = fit_text(draw, day["title"], font_row_bold, max(80, metric_x - route_x - 16))
+        draw.rounded_rectangle((panel_box[0] + 18, y + 2, panel_box[0] + 68, y + 30), radius=10, fill=(44, 107, 178, 255))
+        draw.text((panel_box[0] + 29, y + 5), day["day"], font=font_row_bold, fill=(255, 255, 255, 255))
         draw.text((route_x, y + 4), route, font=font_row_bold, fill=(31, 41, 55, 255))
         draw.text((metric_x, y + 5), metrics, font=font_row, fill=(185, 92, 36, 255))
 
@@ -790,7 +1018,7 @@ def render_labeled_map(
         label = f"{role_text}{stop['day']} {stop['name']}"
         col = index % 2
         row = index // 2
-        x = panel_box[0] + 120 + col * 310
+        x = panel_box[0] + 120 + col * 290
         y = legend_y + row * legend_row_height - 1
         draw.rounded_rectangle((x, y, x + 30, y + 26), radius=8, fill=color)
         draw.text((x + 9, y + 2), marker, font=font_legend_bold, fill=(255, 255, 255, 255))
@@ -808,24 +1036,29 @@ def generate_static_map(data: dict[str, Any], path: Path, key: str | None) -> bo
     if not key:
         return False
 
-    points = simplify_points(flatten_route_points(data), max_points=70)
-    if len(points) < 2:
+    flat_points = flatten_route_points(data)
+    if len(flat_points) < 2:
         return False
 
     logical_width, logical_height = 1024, 640
     map_stops, omitted_stops = overview_marker_stops(data)
-    path_value = "8,0xD97036,0.85,,:"
-    path_value += ";".join(f"{point[0]:.6f},{point[1]:.6f}" for point in points)
+
+    # NOTE: We intentionally do NOT send `paths` to the static map API.
+    # When both `paths` and `markers` are present, Amap's auto-fit miscomputes
+    # the viewport and squeezes the whole route into ~50% of the image
+    # (confirmed by direct API experiments). Sending only `markers` gives a
+    # correct auto-fit that frames all stops. The route polyline is then drawn
+    # locally in render_labeled_map, anchored on the detected marker positions.
+    marker_value = static_map_markers(map_stops)
+    if not marker_value:
+        return False
 
     params = {
         "key": key,
         "size": f"{logical_width}*{logical_height}",
         "scale": "2",
-        "paths": path_value,
+        "markers": marker_value,
     }
-    marker_value = static_map_markers(map_stops)
-    if marker_value:
-        params["markers"] = marker_value
 
     content = b""
     for attempt in range(3):
@@ -859,7 +1092,8 @@ def generate_static_map(data: dict[str, Any], path: Path, key: str | None) -> bo
             "file": path.name,
             "source": "amap-staticmap-labeled",
             "fallback": False,
-            "fit": "provider-autofit",
+            "fit": "provider-autofit-markers-only",
+            "route": "local-drawn-segments",
             "markers": "provider-drawn",
             "marker_count": len(map_stops),
             "omitted_stop_count": len(omitted_stops),
@@ -870,26 +1104,54 @@ def generate_static_map(data: dict[str, Any], path: Path, key: str | None) -> bo
     return False
 
 
-def generate_route_map(data: dict[str, Any], out_dir: Path, key: str | None) -> str:
+def generate_route_map(data: dict[str, Any], out_dir: Path, key: str | None) -> str | None:
+    """Generate a shareable route-map image. Returns the filename, or ``None``.
+
+    Strategy (best first):
+      1. Leaflet + Playwright screenshot → real driving route PNG. Requires
+         the optional ``playwright`` dependency; skipped silently if absent.
+      2. SVG schematic fallback → only when there is no usable route data at
+         all (kept for fully-offline / no-network scenarios).
+
+    Note: the interactive Leaflet map inside trip.html is generated
+    independently of this function and does NOT need Playwright — it works as
+    long as the browser can load the Leaflet CDN and map tiles.
+    """
     png_path = out_dir / "route-map.png"
-    if generate_static_map(data, png_path, key):
-        return png_path.name
+    try:
+        if leaflet_map.render_route_png(data, png_path):
+            data["map"] = {
+                "file": png_path.name,
+                "source": "leaflet-playwright-screenshot",
+                "fallback": False,
+            }
+            return png_path.name
+    except Exception as exc:
+        data["map_png_error"] = str(exc)
 
+    # No Playwright (or screenshot failed) and we still want a static asset:
+    # fall back to the SVG schematic so there is always a route-map file.
     svg_path = out_dir / "route-map.svg"
-    generate_svg(data, svg_path)
-    data["map"] = {
-        "file": svg_path.name,
-        "source": "fallback-svg",
-        "fallback": True,
-    }
-    return svg_path.name
+    try:
+        generate_svg(data, svg_path)
+        data["map"] = {
+            "file": svg_path.name,
+            "source": "fallback-svg",
+            "fallback": True,
+            "note": "Playwright unavailable; interactive Leaflet map in trip.html shows the real route.",
+        }
+        return svg_path.name
+    except Exception:
+        return None
 
 
-def generate_html(data: dict[str, Any], path: Path, map_file: str) -> None:
+def generate_html(data: dict[str, Any], path: Path, map_file: str | None = None) -> None:
     days_html = []
     overview_html = []
     dots_html = []
+    start_date = parse_start_date(data.get("start_date"))
     for day in data["days"]:
+        date_label = day_date_label(day["day"], start_date)
         leg_items = []
         if not day["legs"]:
             note_text = " / ".join(day.get("notes") or [day["title"]])
@@ -913,7 +1175,7 @@ def generate_html(data: dict[str, Any], path: Path, map_file: str) -> None:
     <div class="item-label">驾车{escape(est)}</div>
     <div class="item-text">{escape(leg["from"])} → {escape(leg["to"])}</div>
   </div>
-  <div class="item-right">{escape(leg["distance_km"])}km · {escape(duration_label(int(leg["duration_min"])))}<br>{escape(money_label(leg.get("toll_cny")))}</div>
+  <div class="item-right">{escape(distance_label(leg["distance_km"]))} · {escape(duration_label(int(leg["duration_min"])))}<br>{escape(money_label(leg.get("toll_cny")))}</div>
 </div>'''
                 )
 
@@ -921,9 +1183,9 @@ def generate_html(data: dict[str, Any], path: Path, map_file: str) -> None:
             f'''<section class="slide" aria-label="{escape(day["day"])} {escape(day["title"])}">
   <div class="day-card">
     <div class="day-top">
-      <div class="day-num">{escape(day["day"])}</div>
+      <div class="day-num">{escape(day["day"])}{(' · ' + date_label) if date_label else ''}</div>
       <div class="day-title">{escape(day["title"])}</div>
-      <div class="day-date">{escape(day["distance_km"])}km · {escape(duration_label(int(day["duration_min"])))} · {escape(money_label(day["toll_cny"]))}</div>
+      <div class="day-date">{escape(distance_label(day["distance_km"]))} · {escape(duration_label(int(day["duration_min"])))} · {escape(money_label(day["toll_cny"]))}</div>
     </div>
     <div class="items">{''.join(leg_items)}</div>
     <div class="day-foot">
@@ -943,7 +1205,7 @@ def generate_html(data: dict[str, Any], path: Path, map_file: str) -> None:
   <div class="ov-day-head">
     <span class="ov-day-tag">{escape(day["day"])}</span>
     <span class="ov-day-route">{escape(day["title"])}</span>
-    <span class="ov-day-dist">{escape(day["distance_km"])}km</span>
+    <span class="ov-day-dist">{escape(distance_label(day["distance_km"]))}</span>
   </div>
   <div class="ov-day-body">
     <div class="ov-line"><span class="ui-icon-text"><i data-lucide="clock"></i><span>{escape(duration_label(int(day["duration_min"])))}</span></span></div>
@@ -954,13 +1216,20 @@ def generate_html(data: dict[str, Any], path: Path, map_file: str) -> None:
 
     totals = data["totals"]
     title = escape(data["title"])
+    _sd = parse_start_date(data.get("start_date"))
+    _range = trip_date_range(data["days"], _sd) if _sd else ""
+    title_with_date = f"{title} · {_range}" if _range else title
     route_summary = " → ".join(stop["name"] for stop in ordered_stops(data["days"]))
-    map_note = "真实地图 + 行程标注" if str(data.get("map", {}).get("source", "")).startswith("amap-staticmap") else "示意线路图（地图服务不可用时降级）"
     any_estimated = any(leg.get("estimated") for day in data["days"] for leg in day["legs"])
     toll_hint = "估算参考" if any_estimated else "地图数据"
-    map_path = path.parent / map_file
-    map_cache_token = str(map_path.stat().st_mtime_ns) if map_path.exists() else str(int(time.time()))
-    map_asset = f"./{escape(map_file)}?v={escape(map_cache_token)}"
+    # Interactive Leaflet map snippet (real driving route, inline data).
+    leaflet_snippet = leaflet_map.build_leaflet_snippet(data)
+    # Optional: link to the standalone PNG if it was generated.
+    png_link = ""
+    if map_file and (path.parent / map_file).exists():
+        png_link = f'<div class="map-note">真实路线地图 · 可缩放拖动 · 点击路段看详情 · <a href="./{escape(map_file)}" target="_blank" rel="noopener">查看路线图</a></div>'
+    else:
+        png_link = f'<div class="map-note">真实路线地图 · 可缩放拖动 · 点击路段看详情</div>'
     html_text = f'''<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -989,7 +1258,10 @@ body {{
   font-size: 14px;
 }}
 svg {{ stroke-width: 2; }}
-.app {{ max-width: 520px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; }}
+.app {{ width: 100%; max-width: 520px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; }}
+/* Responsive: widen on larger screens (mobile-first baseline is 520px). */
+@media (min-width: 768px) {{ .app {{ max-width: 760px; }} .header h1 {{ font-size: 22px; }} }}
+@media (min-width: 1024px) {{ .app {{ max-width: 960px; }} }}
 .header {{ padding: 16px 20px 10px; flex-shrink: 0; }}
 .header h1 {{ font-size: 18px; font-weight: 800; letter-spacing: 0; }}
 .subtitle {{ font-size: 11px; color: var(--text2); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
@@ -1104,14 +1376,16 @@ svg {{ stroke-width: 2; }}
 .map-card {{ padding: 12px; }}
 .map-scroll {{ overflow: hidden; }}
 .map-scroll a {{ display: block; }}
-.map-scroll img {{ display: block; width: 100%; height: auto; border-radius: 8px; border: 1px solid var(--line); }}
+.leaflet-wrap {{ width: 100%; }}
+.leaflet-container {{ font: inherit; }}
 .map-note {{ padding: 9px 4px 2px; font-size: 11px; color: var(--text2); text-align: center; }}
+.map-note a {{ color: var(--accent, #2c6bb2); }}
 </style>
 </head>
 <body>
 <div class="app">
   <header class="header">
-    <h1>{title}</h1>
+    <h1>{title_with_date}</h1>
     <div class="subtitle">{escape(route_summary)}</div>
   </header>
   <nav class="tabs" aria-label="行程视图">
@@ -1121,9 +1395,9 @@ svg {{ stroke-width: 2; }}
   <main class="main">
     <section class="tab-panel active" id="tab-overview">
       <div class="overview-stack">
-        <div class="map-card"><div class="map-scroll"><a href="{map_asset}" target="_blank" rel="noopener"><img src="{map_asset}" alt="{title}线路图"></a></div><div class="map-note">{escape(map_note)} · 点开看大图</div></div>
+        <div class="map-card"><div class="map-scroll">__LEAFLET_MAP__</div>{png_link}</div>
         <div class="overview-stats">
-          <div class="stat-tile"><span class="ui-icon-text"><i data-lucide="route"></i><span>总里程</span></span><div class="value">{escape(totals["distance_km"])}km</div><div class="hint">全程驾车</div></div>
+          <div class="stat-tile"><span class="ui-icon-text"><i data-lucide="route"></i><span>总里程</span></span><div class="value">{escape(distance_label(totals["distance_km"]))}</div><div class="hint">全程驾车</div></div>
           <div class="stat-tile"><span class="ui-icon-text"><i data-lucide="clock"></i><span>总时长</span></span><div class="value">{escape(duration_label(int(totals["duration_min"])))}</div><div class="hint">不含停留</div></div>
           <div class="stat-tile"><span class="ui-icon-text"><i data-lucide="banknote"></i><span>过路费</span></span><div class="value">{escape(money_label(totals["toll_cny"]))}</div><div class="hint">{escape(toll_hint)}</div></div>
         </div>
@@ -1189,13 +1463,18 @@ if (window.lucide) window.lucide.createIcons();
 </body>
 </html>
 '''
+    # The Leaflet snippet contains CSS/JS with curly braces, so it cannot live
+    # inside the f-string above. Inject it now via placeholder replacement.
+    html_text = html_text.replace("__LEAFLET_MAP__", leaflet_snippet)
     path.write_text(html_text, encoding="utf-8")
 
 
 def write_outputs(data: dict[str, Any], out_dir: Path, key: str | None) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
-    map_file = generate_route_map(data, out_dir, key)
+    # Write data JSON first (fast) so it lands even if PNG generation is slow/fails.
     (out_dir / "trip-data.json").write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    # PNG generation is optional (needs Playwright); may return None.
+    map_file = generate_route_map(data, out_dir, key)
     generate_html(data, out_dir / "trip.html", map_file)
 
 
@@ -1204,6 +1483,8 @@ def main() -> int:
     parser.add_argument("input", help="Text file containing D1/D2 day blocks and A 到 B route lines.")
     parser.add_argument("--out", default="./trip-output", help="Output directory.")
     parser.add_argument("--title", default="自驾行程", help="Trip title used in generated outputs.")
+    parser.add_argument("--start-date", default=None,
+                        help="Departure date YYYY-MM-DD (e.g. 2026-07-17). When set, each day shows its calendar date and weekday.")
     parser.add_argument("--no-api", action="store_true", help="Skip map API calls and generate estimated preview data.")
     args = parser.parse_args()
 
@@ -1220,6 +1501,9 @@ def main() -> int:
     key = None if args.no_api else amap_key()
     data = enrich(days, use_api=not args.no_api)
     data["title"] = args.title
+    start_date = parse_start_date(getattr(args, "start_date", None))
+    if start_date:
+        data["start_date"] = start_date.isoformat()
     write_outputs(data, Path(args.out), key)
 
     source_count: dict[str, int] = {}

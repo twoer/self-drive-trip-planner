@@ -23,14 +23,22 @@ Lookup sequence:
 4. Read duration in seconds and convert to minutes.
 5. Read tolls if present. If tolls are absent, mark toll as estimated or unknown.
 6. Collect step polylines when available and keep them in JSON for route drawing.
-7. Generate `route-map.png` with the static map API:
-   - Use `paths` for the driving route polyline.
-   - Omit explicit `location` and `zoom` for overview maps unless there is a strong reason; let the provider auto-fit route paths and markers.
-   - Use provider-drawn `markers` for stop positions so markers align with the route.
-   - Draw a local annotation panel on top of the downloaded map image.
-   - Explain marker letters in the panel with the day each stop is reached. Do not merge departure and arrival days into labels such as `D1/D2` unless the user explicitly asks for overnight continuity.
-   - For whole-trip overview maps, mark at most 10 stops with provider-drawn markers. If the route has more stops, select the start, end, daily endpoints, and evenly distributed major stops; keep the complete stop list in JSON/HTML instead of drawing local projected markers.
-   - Put daily route, duration, and toll details in a compact summary panel instead of scattering metric callouts across the map.
+7. Render the map with **Leaflet + Amap tiles** (see `scripts/leaflet_map.py`):
+   - The interactive map is embedded in `trip.html` and shows the **real driving
+     route** (the polylines from step 5) on top of public Amap raster tiles
+     (`webrd0{1-4}.is.autonavi.com`). No web-service key is needed for the
+     tiles — only for the routing/geocoding calls above.
+   - Each leg is drawn with its own polyline; color reflects data source
+     (blue `#2c6bb2` for real API data, orange `#d97036` for estimates). Stops
+     are drawn as circle markers (green start / blue mid / red end) with
+     A/B/C... letters explained in the on-map legend and the HTML overview.
+   - `map.fitBounds()` frames the whole route — this replaces the old Amap
+     static-map approach, whose auto-fit was unreliable when both `paths` and
+     `markers` were present (it squeezed the route into a corner).
+   - A shareable `route-map.png` is produced by rendering the same Leaflet
+     page headless via **Playwright** and screenshotting it. Playwright is an
+     **optional** dependency: when it is not installed, PNG generation is
+     skipped silently and the interactive HTML map still works.
 
 Failure handling:
 
@@ -38,12 +46,16 @@ Failure handling:
 - If API quota, key, or network fails, do not block HTML generation.
 - Use estimates and schematic SVG only as a preview, mark `estimated: true`, and tell the user to verify.
 
-Static map constraints to respect:
+Static map constraints (historical, applies only if you revert to the Amap
+static-map API — the current implementation uses Leaflet instead):
 
 - Maximum image size is `1024*1024`.
 - `markers` and `labels` are limited, so prefer major stops when a trip has many points.
 - `paths` has a low overlay count limit. Combine route points into one simplified path for whole-trip maps.
-- If the route has many legs, keep the map labels limited to `D几 + 地点名` and move detailed metrics into the summary panel or HTML overview cards.
+- **Known issue:** when both `paths` and `markers` are sent, Amap's auto-fit
+  miscomputes the viewport and squeezes the route into ~50% of the image.
+  Passing `location`/`zoom` does not help (they are ignored when overlays are
+  present). This is why the project moved to Leaflet for map rendering.
 
 Estimate fallback:
 

@@ -12,14 +12,13 @@ description: Create self-driving trip outputs from structured itinerary text suc
    - Prefer a map API when credentials are available.
    - Fall back to clearly marked estimates if an API key is unavailable or a lookup fails.
 3. Generate a normalized `trip-data.json` before creating visual outputs.
-4. Generate a map-based route image:
-   - Prefer a real static map image with route polylines and a custom readable annotation layer.
-   - Let the map provider draw route markers so marker positions stay aligned with the route.
-   - Use marker letters (`A`, `B`, `C`, ...) on the map, then explain those letters in a compact panel.
-   - Mark the start city and end city explicitly in the panel, such as `A 起点D1 合肥` and `H 终点D5 安顺`.
-   - Keep the map itself uncluttered: do not place city-name labels or every segment's metrics beside the route line.
-   - Put daily route, duration, toll details, and marker legend in the map panel, usually at the top-left.
-   - Use the schematic SVG only as a fallback when map credentials/network/polyline data are unavailable.
+4. Generate an interactive map showing the **real driving route**:
+   - Embed a Leaflet map in `trip.html` using Amap raster tiles (no tile key needed); draw each leg's actual polyline from the routing API.
+   - Color each leg by data source: blue for real API data, orange for estimates.
+   - Use marker letters (`A`, `B`, `C`, ...) on the map, with start (green) and end (red) highlighted; let `fitBounds` frame the whole route.
+   - Keep the map uncluttered: put daily route, duration, toll details in the HTML overview cards and an on-map legend, not as scattered callouts along the route.
+   - Optionally produce `route-map.png` by screenshotting the same Leaflet page with Playwright (an optional dependency); when Playwright is missing, skip the PNG silently — the interactive HTML map still works.
+   - Use the schematic SVG only as a fallback when network/polyline data are unavailable.
 5. Generate a mobile-first HTML itinerary page inspired by the user's reference style:
    - Header with trip title and route summary.
    - Tabs for daily itinerary, route overview, toll summary, and total stats.

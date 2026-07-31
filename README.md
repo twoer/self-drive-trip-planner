@@ -46,6 +46,23 @@ python3 scripts/route_trip.py examples/simple-trip.txt --out ./trip-output --tit
 
 `GAODE_KEY` is also supported.
 
+### Optional: generate a shareable route-map image
+
+`trip.html` always includes an interactive Leaflet map (real driving route,
+pan/zoom/click) that needs no extra dependencies — only a browser with network
+access to load the map tiles.
+
+To additionally produce a standalone `route-map.png` (e.g. for sharing in
+chat or embedding in a document), install Playwright:
+
+```bash
+python3 -m pip install playwright
+python3 -m playwright install chromium
+```
+
+When Playwright is not installed, PNG generation is skipped silently; the
+interactive HTML map is unaffected.
+
 ## Input Format
 
 ```text

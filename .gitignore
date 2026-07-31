@@ -16,3 +16,6 @@ trip-input-*.txt
 htmlcov/
 
 .open-source-trash/
+
+# Local agent/tool state
+.zcode/
