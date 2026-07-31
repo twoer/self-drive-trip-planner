@@ -1185,11 +1185,10 @@ def generate_html(data: dict[str, Any], path: Path, map_file: str | None = None)
     <div class="day-top">
       <div class="day-num">{escape(day["day"])}{(' · ' + date_label) if date_label else ''}</div>
       <div class="day-title">{escape(day["title"])}</div>
-      <div class="day-date">{escape(distance_label(day["distance_km"]))} · {escape(duration_label(int(day["duration_min"])))} · {escape(money_label(day["toll_cny"]))}</div>
     </div>
     <div class="items">{''.join(leg_items)}</div>
     <div class="day-foot">
-      <div class="stat"><div class="stat-num">{escape(day["distance_km"])}</div><div class="stat-lbl">公里</div></div>
+      <div class="stat"><div class="stat-num">{escape(distance_label(day["distance_km"]))}</div><div class="stat-lbl">公里</div></div>
       <div class="stat"><div class="stat-num">{escape(duration_label(int(day["duration_min"])))}</div><div class="stat-lbl">驾车</div></div>
       <div class="stat"><div class="stat-num">{escape(money_label(day["toll_cny"]))}</div><div class="stat-lbl">过路费</div></div>
     </div>
@@ -1421,6 +1420,7 @@ svg {{ stroke-width: 2; }}
 </div>
 <script>
 const dayTitles = {json.dumps([day["title"] for day in data["days"]], ensure_ascii=False)};
+const tripStartDate = {json.dumps(data.get("start_date"))};  // 'YYYY-MM-DD' or null
 const daySlider = document.getElementById('daySlider');
 const pagerIndex = document.getElementById('pagerIndex');
 const pagerTitle = document.getElementById('pagerTitle');
@@ -1457,7 +1457,22 @@ daySlider.addEventListener('scroll', () => {{
   }}, 80);
 }});
 window.addEventListener('resize', () => setCurrentDay(currentDay, true));
-setCurrentDay(0, false);
+
+// Auto-jump to today's card when a start date is set. e.g. start=2026-07-17
+// and today is 2026-07-21 -> D5. If today is before the trip, stay on D1;
+// if after the trip, stay on the last day.
+function todayDayIndex() {{
+  if (!tripStartDate) return 0;
+  const start = new Date(tripStartDate + 'T00:00:00');
+  if (isNaN(start)) return 0;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  start.setHours(0, 0, 0, 0);
+  const diffDays = Math.round((today - start) / 86400000);
+  if (diffDays < 0) return 0;                       // before trip -> D1
+  return Math.min(diffDays, dayTitles.length - 1);  // cap at last day
+}}
+setCurrentDay(todayDayIndex(), false);
 if (window.lucide) window.lucide.createIcons();
 </script>
 </body>
