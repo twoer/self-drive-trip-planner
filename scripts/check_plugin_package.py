@@ -16,6 +16,7 @@ REQUIRED_SKILL_FILES = [
     "references/output-contract.md",
     "scripts/route_trip.py",
     "scripts/leaflet_map.py",
+    "scripts/editor_server.py",
 ]
 
 FORBIDDEN_PARTS = {

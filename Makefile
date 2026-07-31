@@ -8,7 +8,7 @@ CODEX_SKILLS_DIR ?= $(HOME)/.codex/skills
 PLUGIN_CREATOR_DIR ?= $(HOME)/.codex/skills/.system/plugin-creator
 PLUGIN_VALIDATOR ?= $(PLUGIN_CREATOR_DIR)/scripts/validate_plugin.py
 
-.PHONY: install install-pdf setup demo install-skill install-plugin test demo-estimate demo-api demo-data demo-pdf demo-batch pages-demo package-plugin check-plugin-package validate-plugin
+.PHONY: install install-pdf setup demo editor install-skill install-plugin test demo-estimate demo-api demo-data demo-pdf demo-batch pages-demo package-plugin check-plugin-package validate-plugin
 
 $(PYTHON):
 	$(BOOTSTRAP_PYTHON) -m venv $(VENV)
@@ -27,6 +27,9 @@ setup: $(PYTHON)
 demo: install
 	$(PYTHON) scripts/run_demo.py --out $(OUT) --title "$(TITLE)" --start-date $(START_DATE)
 
+editor: install
+	$(PYTHON) scripts/editor_server.py
+
 install-skill: $(PYTHON)
 	$(PYTHON) scripts/install_skill.py --dest $(CODEX_SKILLS_DIR)
 
@@ -34,7 +37,7 @@ install-plugin: $(PYTHON)
 	$(PYTHON) scripts/install_plugin_local.py
 
 test: install
-	$(PYTHON) -m py_compile scripts/route_trip.py scripts/leaflet_map.py
+	$(PYTHON) -m py_compile scripts/route_trip.py scripts/leaflet_map.py scripts/editor_server.py
 	$(PYTHON) -m unittest discover -s tests
 
 demo-estimate: install

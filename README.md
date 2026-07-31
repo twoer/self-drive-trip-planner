@@ -38,6 +38,24 @@ open trip-output/trip.html
 - `make demo` 会优先使用 `.env`、`AMAP_KEY` 或 `GAODE_KEY` 里的高德 key。
 - 如果没有 key，会生成估算版预览，并在 `trip-output/manifest.json` 里写明 warning。
 
+## 本地可视化编辑器
+
+如果你不想直接写文本文件，可以启动本地编辑器：
+
+```bash
+make editor
+```
+
+然后打开：
+
+```text
+http://127.0.0.1:8765
+```
+
+编辑器支持粘贴自然语言行程、解析成 D1/D2 卡片、增删每天、编辑路线段和停留备注，并调用同一套生成引擎输出到 `trip-output/editor`。
+
+第一版编辑器默认使用 `estimate` 模式，方便没有高德 key 的用户先预览。配置 `AMAP_KEY` 或 `GAODE_KEY` 后，可以切换到 `auto` 或 `accurate`。
+
 ## 配置高德 Key
 
 国内自驾路线建议使用高德 Web 服务 key。你可以在 [高德开放平台控制台](https://console.amap.com/dev/key/app) 创建 Web 服务 Key，然后写入本地 `.env`：

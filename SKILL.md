@@ -61,6 +61,14 @@ export GAODE_KEY="your-gaode-web-service-key"
 
 If no key is available, still run the script. Keep the generated estimates visibly marked and tell the user they should verify route metrics before booking or departure.
 
+For manual visual editing, start the local editor:
+
+```bash
+make editor
+```
+
+Use this when the user wants to paste an itinerary, edit D1/D2 cards, adjust route legs or stay notes, and generate outputs from a browser. The editor writes to `trip-output/editor` and still uses the same route generation engine. After generation, read `trip-output/editor/manifest.json` before reporting results.
+
 ## Input Rules
 
 Accept compact Chinese itinerary text:
