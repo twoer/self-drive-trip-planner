@@ -36,13 +36,18 @@
     ],
     "assumptions": {
       "trip_days": 10,
-      "distance_km": 3917.4
+      "distance_km": 3917.2,
+      "passengers": {
+        "adults": 1,
+        "children_under_1_2m": 0,
+        "children_over_1_2m": 0
+      }
     },
     "warnings": []
   },
   "totals": {
-    "distance_km": 3917.4,
-    "duration_min": 2807,
+    "distance_km": 3917.2,
+    "duration_min": 2815,
     "toll_cny": 2388.0
   },
   "counts": {

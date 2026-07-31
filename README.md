@@ -54,7 +54,7 @@ Then ask Codex to use `$self-drive-trip-planner` with an itinerary.
 
 Download the latest packaged plugin from GitHub Releases:
 
-[self-drive-trip-planner-plugin.zip](https://github.com/twoer/self-drive-trip-planner/releases/download/v0.2.1/self-drive-trip-planner-plugin.zip)
+[self-drive-trip-planner-plugin.zip](https://github.com/twoer/self-drive-trip-planner/releases/download/v0.3.0/self-drive-trip-planner-plugin.zip)
 
 For a step-by-step setup guide, see [INSTALL.md](INSTALL.md).
 
@@ -117,11 +117,13 @@ python3 scripts/route_trip.py examples/simple-trip.txt --out ./trip-output --tit
 
 `GAODE_KEY` is also supported.
 
-Run with a rough budget estimate. In Codex, natural language is enough:
+Run with a rough budget estimate. Append a `费用预算：` section to the itinerary:
 
 ```text
-我是电车，电价 1.5 元/度，百公里电耗 16 度；酒店每晚 300 元，
-餐费每天 100 元；小七孔门票 120 元，中国天眼门票 140 元。
+费用预算：
+我们是两大一小（低于 1.2m），开电车，电价 1.5 元/度，百公里电耗 16 度；
+酒店每晚 300 元，餐费每天 100 元；
+小七孔成人票 120 元，中国天眼成人票 140 元。
 ```
 
 CLI equivalent:
@@ -135,10 +137,15 @@ python3 scripts/route_trip.py examples/simple-trip.txt \
   --ev-kwh-price 1.5 \
   --hotel-nightly 300 \
   --meal-daily 100 \
+  --adults 2 \
+  --children-under-1-2m 1 \
   --attraction 小七孔=120 \
   --attraction 中国天眼=140
 ```
 
+Hotel nights default to trip days minus one; meal days default to the trip day count.
+For attraction tickets, adults use full price, children below 1.2m are free, and
+children at or above 1.2m use half adult price.
 If no budget inputs are provided, the generated `费用` tab shows an activation
 reminder instead of pretending to calculate a total trip budget.
 

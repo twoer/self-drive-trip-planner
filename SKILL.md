@@ -82,6 +82,23 @@ Also accept `->`, `→`, `回`, `返回`, and multi-stop lines such as `荔波 �
 
 Lines without route connectors, such as `贵阳市区`, are treated as non-driving stay notes for that day. Keep them in `trip-data.json` and the HTML, but do not include them in driving distance, duration, toll, or route-map paths.
 
+Accept a trailing natural-language `费用预算：` section. Do not treat it as a day note. Parse budget details such as:
+
+```text
+费用预算：
+我们是两大一小（高于 1.2m），开电车，电价 1.5 元/度，百公里电耗 16 度。
+酒店每晚 300 元，餐费每天 100 元。
+景点门票：小七孔成人票 120 元，中国天眼成人票 140 元。
+```
+
+Budget rules:
+
+- Hotel nights default to trip days minus one.
+- Meal days default to trip day count.
+- Adult attraction tickets use full price.
+- Children below 1.2m are free by default.
+- Children at or above 1.2m use half adult price by default.
+
 Read `references/data-schema.md` when changing the parser, consuming user-provided JSON, or explaining the normalized schema. Read `references/output-contract.md` when changing output files, `manifest.json`, modes, or final reporting behavior.
 
 ## Map Service

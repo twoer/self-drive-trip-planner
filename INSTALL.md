@@ -40,11 +40,13 @@ in `trip-output/manifest.json`.
 The generated HTML always includes a `费用` tab. If you do not provide budget
 inputs, that tab shows an activation reminder.
 
-In Codex, provide budget inputs in natural language:
+Append a `费用预算：` section to the itinerary:
 
 ```text
-我是电车，电价 1.5 元/度，百公里电耗 16 度；酒店每晚 300 元，
-餐费每天 100 元；小七孔门票 120 元，中国天眼门票 140 元。
+费用预算：
+我们是两大一小（低于 1.2m），开电车，电价 1.5 元/度，百公里电耗 16 度；
+酒店每晚 300 元，餐费每天 100 元；
+小七孔成人票 120 元，中国天眼成人票 140 元。
 ```
 
 CLI equivalent:
@@ -57,6 +59,8 @@ CLI equivalent:
   --ev-kwh-price 1.5 \
   --hotel-nightly 300 \
   --meal-daily 100 \
+  --adults 2 \
+  --children-under-1-2m 1 \
   --attraction 小七孔=120 \
   --attraction 中国天眼=140
 ```
@@ -70,10 +74,16 @@ Budget options:
 - `--hotel-nights 9`; defaults to trip days minus one
 - `--meal-daily 100`
 - `--meal-days 10`; defaults to trip day count
+- `--adults 2`
+- `--children-under-1-2m 1`; free attraction tickets by default
+- `--children-over-1-2m 1`; half-price attraction tickets by default
 - `--attraction 名称=金额`; repeatable
 - `--misc-fee 名称=金额`; repeatable
 
-The estimate includes route tolls from the route data when available.
+Hotel nights and meal days are inferred from the itinerary unless explicitly
+overridden. Adults use full attraction ticket price, children below 1.2m are
+free, and children at or above 1.2m use half adult price. The estimate includes
+route tolls from the route data when available.
 
 ## PDF Export
 

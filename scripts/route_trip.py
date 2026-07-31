@@ -418,6 +418,147 @@ def parse_non_negative_int(value: str) -> int:
     return number
 
 
+CHINESE_NUMBER_VALUES = {
+    "零": 0,
+    "〇": 0,
+    "一": 1,
+    "二": 2,
+    "两": 2,
+    "俩": 2,
+    "三": 3,
+    "四": 4,
+    "五": 5,
+    "六": 6,
+    "七": 7,
+    "八": 8,
+    "九": 9,
+    "十": 10,
+}
+
+
+def parse_small_count(value: str) -> int | None:
+    text = value.strip()
+    if not text:
+        return None
+    if text.isdigit():
+        return int(text)
+    if text in CHINESE_NUMBER_VALUES:
+        return CHINESE_NUMBER_VALUES[text]
+    if text.startswith("十") and len(text) == 2:
+        return 10 + CHINESE_NUMBER_VALUES.get(text[1], 0)
+    if text.endswith("十") and len(text) == 2:
+        return CHINESE_NUMBER_VALUES.get(text[0], 0) * 10
+    if "十" in text and len(text) == 3:
+        return CHINESE_NUMBER_VALUES.get(text[0], 0) * 10 + CHINESE_NUMBER_VALUES.get(text[2], 0)
+    return None
+
+
+def split_budget_section(text: str) -> tuple[str, str]:
+    """Split itinerary text from a trailing natural-language budget section."""
+    lines = text.splitlines()
+    headings = ("费用预算", "预算", "费用", "费用说明", "预算说明")
+    for index, raw_line in enumerate(lines):
+        stripped = raw_line.strip()
+        line = stripped.rstrip("：:")
+        if line in headings or any(stripped.startswith(f"{heading}{sep}") for heading in headings for sep in ("：", ":")):
+            return "\n".join(lines[:index]).strip() + "\n", "\n".join(lines[index:]).strip()
+    return text, ""
+
+
+def parse_passenger_counts(text: str) -> dict[str, int]:
+    passengers = {"adults": 1, "children_under_1_2m": 0, "children_over_1_2m": 0}
+    adult_match = re.search(r"([0-9一二两俩三四五六七八九十]+)\s*(?:大|个成人|位成人|成人)", text)
+    if adult_match:
+        passengers["adults"] = parse_small_count(adult_match.group(1)) or passengers["adults"]
+
+    for child_match in re.finditer(r"([0-9一二两俩三四五六七八九十]+)\s*(?:小|个儿童|名儿童|位儿童|儿童|孩子|小孩)([^。；;\n]*)", text):
+        count = parse_small_count(child_match.group(1)) or 0
+        context = child_match.group(2)
+        if re.search(r"(?:低于|小于|不到|不足|以下|免票).*1\.?2|1\.?2.*(?:以下|低于|小于|不到|不足|免票)", context):
+            passengers["children_under_1_2m"] += count
+        elif re.search(r"(?:高于|超过|大于|以上).*1\.?2|1\.?2.*(?:以上|高于|超过|大于|半价)", context):
+            passengers["children_over_1_2m"] += count
+        elif "半价" in context:
+            passengers["children_over_1_2m"] += count
+        elif "免票" in context:
+            passengers["children_under_1_2m"] += count
+        else:
+            passengers["children_over_1_2m"] += count
+    return passengers
+
+
+def parse_first_amount(patterns: list[str], text: str) -> float | None:
+    for pattern in patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            return float(match.group(1))
+    return None
+
+
+def parse_budget_fee_items(line: str, category: str) -> list[dict[str, Any]]:
+    """Parse fee fragments like ``小七孔 120 元，中国天眼 140 元``."""
+    clean = re.sub(r"^(?:景点费用|景点门票|门票|其他费用|其他|杂费)\s*[:：]\s*", "", line.strip())
+    items: list[dict[str, Any]] = []
+    for match in re.finditer(r"([\u4e00-\u9fffA-Za-z0-9·（）()]+?)\s*([0-9]+(?:\.[0-9]+)?)\s*元", clean):
+        name = match.group(1).strip(" ，,、；;。")
+        if not name:
+            continue
+        amount = float(match.group(2))
+        if category == "attraction":
+            name = re.sub(r"(?:成人票|门票|票价|费用|费)$", "", name)
+            items.append({"name": name, "adult_price_cny": amount})
+        else:
+            items.append({"name": name, "amount_cny": amount})
+    return items
+
+
+def parse_budget_text(text: str) -> dict[str, Any]:
+    budget_text = text.strip()
+    if not budget_text:
+        return {}
+
+    result: dict[str, Any] = {
+        "passengers": parse_passenger_counts(budget_text),
+        "attractions": [],
+        "misc_fees": [],
+    }
+    if re.search(r"电车|新能源|充电|电价|电耗", budget_text):
+        result["vehicle_type"] = "ev"
+
+    ev_price = parse_first_amount([r"电价\s*([0-9]+(?:\.[0-9]+)?)\s*元?\s*/?\s*(?:度|kwh|KWH)"], budget_text)
+    if ev_price is not None:
+        result["ev_kwh_price"] = ev_price
+
+    ev_consumption = parse_first_amount(
+        [
+            r"百公里(?:电耗|耗电)\s*([0-9]+(?:\.[0-9]+)?)\s*(?:度|kwh|KWH)",
+            r"([0-9]+(?:\.[0-9]+)?)\s*(?:度|kwh|KWH)\s*/?\s*(?:百公里|100\s*km)",
+        ],
+        budget_text,
+    )
+    if ev_consumption is not None:
+        result["ev_kwh_per_100km"] = ev_consumption
+
+    hotel_nightly = parse_first_amount([r"(?:酒店|住宿)[^。；;\n]*?(?:每晚|一晚|每夜)\s*([0-9]+(?:\.[0-9]+)?)\s*元"], budget_text)
+    if hotel_nightly is not None:
+        result["hotel_nightly"] = hotel_nightly
+
+    meal_daily = parse_first_amount([r"(?:餐费|吃饭|餐饮)[^。；;\n]*?(?:每天|每日|一天)\s*([0-9]+(?:\.[0-9]+)?)\s*元"], budget_text)
+    if meal_daily is not None:
+        result["meal_daily"] = meal_daily
+
+    for raw_line in budget_text.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        if re.search(r"景点|门票", line):
+            result["attractions"].extend(parse_budget_fee_items(line, "attraction"))
+        elif re.search(r"其他费用|其他|停车|杂费", line):
+            result["misc_fees"].extend(parse_budget_fee_items(line, "misc"))
+
+    return result
+
+
 def trip_day_count(data: dict[str, Any]) -> int:
     max_day = 0
     for day in data.get("days", []):
@@ -454,6 +595,7 @@ def build_budget(
     meal_days: int | None = None,
     attractions: list[dict[str, Any]] | None = None,
     misc_fees: list[dict[str, Any]] | None = None,
+    passengers: dict[str, int] | None = None,
 ) -> dict[str, Any]:
     totals = data.get("totals", {})
     distance_km = float(totals.get("distance_km") or 0)
@@ -463,6 +605,14 @@ def build_budget(
         "trip_days": day_count,
         "distance_km": round(distance_km, 1),
     }
+    passenger_counts = {
+        "adults": 1,
+        "children_under_1_2m": 0,
+        "children_over_1_2m": 0,
+    }
+    if passengers:
+        passenger_counts.update({key: int(value) for key, value in passengers.items() if key in passenger_counts})
+    assumptions["passengers"] = passenger_counts
     warnings: list[str] = []
 
     toll_cny = float(totals.get("toll_cny") or 0)
@@ -509,7 +659,25 @@ def build_budget(
         )
 
     for item in attractions or []:
-        items.append(budget_item("attraction", item["name"], item["amount_cny"], "景点费用"))
+        if "adult_price_cny" in item:
+            adult_price = float(item["adult_price_cny"])
+            adults = passenger_counts["adults"]
+            free_children = passenger_counts["children_under_1_2m"]
+            half_children = passenger_counts["children_over_1_2m"]
+            amount = adults * adult_price + half_children * adult_price * 0.5
+            detail_parts = [f"成人 {adults} × {money_label(adult_price)}"]
+            if half_children:
+                detail_parts.append(f"1.2m 以上儿童 {half_children} × {money_label(adult_price * 0.5)}")
+            if free_children:
+                detail_parts.append(f"1.2m 以下儿童 {free_children} 人免票")
+            item_data = budget_item("attraction", item["name"], amount, "；".join(detail_parts))
+            item_data["adult_price_cny"] = round(adult_price, 2)
+            item_data["charged_adults"] = adults
+            item_data["free_children_under_1_2m"] = free_children
+            item_data["half_price_children_over_1_2m"] = half_children
+            items.append(item_data)
+        else:
+            items.append(budget_item("attraction", item["name"], item["amount_cny"], "景点费用"))
 
     for item in misc_fees or []:
         items.append(budget_item("misc", item["name"], item["amount_cny"], "其他费用"))
@@ -1480,7 +1648,7 @@ def generate_html(data: dict[str, Any], path: Path, map_file: str | None = None)
   <div class="activate-body">
     <div class="activate-title">费用计算未启用</div>
     <div class="activate-text">运行时加入电费、住宿、餐饮或景点费用参数后，这里会生成总预算和分项明细。</div>
-    <div class="activate-example">你可以这样说：我是电车，电价 1.5 元/度，百公里电耗 16 度；酒店每晚 300 元，餐费每天 100 元；小七孔门票 120 元，中国天眼门票 140 元。</div>
+    <div class="activate-example">你可以这样说：我们是两大一小（低于 1.2m），开电车，电价 1.5 元/度，百公里电耗 16 度；酒店每晚 300 元，餐费每天 100 元；小七孔成人票 120 元，中国天眼成人票 140 元。</div>
   </div>
 </div>
 <div class="budget-muted">
@@ -1937,6 +2105,9 @@ def main() -> int:
     parser.add_argument("--meal-days", type=parse_non_negative_int, default=None, help="Meal days. Defaults to trip day count.")
     parser.add_argument("--attraction", action="append", type=parse_named_amount, default=[], help="Attraction fee item, repeatable. Format: NAME=AMOUNT, e.g. 小七孔=120.")
     parser.add_argument("--misc-fee", action="append", type=parse_named_amount, default=[], help="Other budget item, repeatable. Format: NAME=AMOUNT.")
+    parser.add_argument("--adults", type=parse_non_negative_int, default=None, help="Adult count for attraction ticket calculation.")
+    parser.add_argument("--children-under-1-2m", type=parse_non_negative_int, default=None, help="Children below 1.2m; attraction tickets are free by default.")
+    parser.add_argument("--children-over-1-2m", type=parse_non_negative_int, default=None, help="Children at or above 1.2m; attraction tickets use half adult price by default.")
     parser.add_argument(
         "--mode",
         choices=("auto", "estimate", "accurate", "publish-demo", "data-only"),
@@ -1951,7 +2122,10 @@ def main() -> int:
         print(f"Input file not found: {input_path}", file=sys.stderr)
         return 2
 
-    days = parse_itinerary(input_path.read_text(encoding="utf-8"))
+    input_text = input_path.read_text(encoding="utf-8")
+    itinerary_text, budget_text = split_budget_section(input_text)
+    natural_budget = parse_budget_text(budget_text)
+    days = parse_itinerary(itinerary_text)
     if not days:
         print("No route legs found. Use lines such as: 合肥 到 岳阳", file=sys.stderr)
         return 2
@@ -1976,22 +2150,38 @@ def main() -> int:
     if start_date:
         data["start_date"] = start_date.isoformat()
     vehicle_type = args.vehicle_type
-    ev_kwh_per_100km = args.ev_kwh_per_100km
-    if args.ev_kwh_price is not None and vehicle_type == "none":
+    natural_vehicle_type = natural_budget.get("vehicle_type", "none")
+    if vehicle_type == "none" and natural_vehicle_type != "none":
+        vehicle_type = str(natural_vehicle_type)
+    ev_kwh_price = args.ev_kwh_price if args.ev_kwh_price is not None else natural_budget.get("ev_kwh_price")
+    ev_kwh_per_100km = args.ev_kwh_per_100km if args.ev_kwh_per_100km is not None else natural_budget.get("ev_kwh_per_100km")
+    hotel_nightly = args.hotel_nightly if args.hotel_nightly is not None else natural_budget.get("hotel_nightly")
+    meal_daily = args.meal_daily if args.meal_daily is not None else natural_budget.get("meal_daily")
+    attractions = [*(natural_budget.get("attractions") or []), *args.attraction]
+    misc_fees = [*(natural_budget.get("misc_fees") or []), *args.misc_fee]
+    passengers = natural_budget.get("passengers") or {}
+    if args.adults is not None:
+        passengers["adults"] = args.adults
+    if args.children_under_1_2m is not None:
+        passengers["children_under_1_2m"] = args.children_under_1_2m
+    if args.children_over_1_2m is not None:
+        passengers["children_over_1_2m"] = args.children_over_1_2m
+    if ev_kwh_price is not None and vehicle_type == "none":
         vehicle_type = "ev"
-    if vehicle_type == "ev" and args.ev_kwh_price is not None and ev_kwh_per_100km is None:
+    if vehicle_type == "ev" and ev_kwh_price is not None and ev_kwh_per_100km is None:
         ev_kwh_per_100km = 16.0
     data["budget"] = build_budget(
         data,
         vehicle_type=vehicle_type,
-        ev_kwh_price=args.ev_kwh_price,
+        ev_kwh_price=ev_kwh_price,
         ev_kwh_per_100km=ev_kwh_per_100km,
-        hotel_nightly=args.hotel_nightly,
+        hotel_nightly=hotel_nightly,
         hotel_nights=args.hotel_nights,
-        meal_daily=args.meal_daily,
+        meal_daily=meal_daily,
         meal_days=args.meal_days,
-        attractions=args.attraction,
-        misc_fees=args.misc_fee,
+        attractions=attractions,
+        misc_fees=misc_fees,
+        passengers=passengers,
     )
     out_dir = Path(args.out) if args.out else Path("docs" if mode == "publish-demo" else "trip-output")
     manifest = write_outputs(data, out_dir, key, mode, pdf=args.pdf)

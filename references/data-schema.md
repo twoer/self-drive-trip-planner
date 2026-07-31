@@ -55,7 +55,12 @@ Use this normalized JSON shape between parsing, enrichment, and rendering.
     ],
     "assumptions": {
       "trip_days": 2,
-      "distance_km": 600.0
+      "distance_km": 600.0,
+      "passengers": {
+        "adults": 2,
+        "children_under_1_2m": 1,
+        "children_over_1_2m": 0
+      }
     },
     "warnings": []
   }
@@ -72,3 +77,6 @@ Rules:
 - Use `estimated: true` when any metric is approximated.
 - Keep original place names from the user unless a map API returns a clearly better formatted name and the user has asked for cleanup.
 - Keep budget amounts numeric in CNY. If no budget inputs are provided, set `budget.configured` to `false` and let the HTML cost tab show an activation reminder.
+- If a `费用预算：` section is present, parse it separately from day notes.
+- Hotel nights default to `trip_days - 1`; meal days default to `trip_days`.
+- Attraction adult ticket prices are multiplied by adult count. Children below 1.2m are free; children at or above 1.2m are half price.

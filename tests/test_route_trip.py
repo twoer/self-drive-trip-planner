@@ -177,6 +177,86 @@ D3
             self.assertIn("费用预估", html)
             self.assertIn("小七孔", html)
 
+    def test_natural_language_budget_derives_days_and_child_ticket_rules(self):
+        text = (ROOT / "examples" / "simple-trip.txt").read_text(encoding="utf-8") + """
+
+费用预算：
+我们是两大一小（低于 1.2m），开电车，电价 1.5 元/度，百公里电耗 16 度。
+酒店每晚 300 元，餐费每天 100 元。
+景点门票：小七孔成人票 120 元，中国天眼成人票 140 元。
+其他费用：停车费 100 元，杂费 200 元。
+"""
+        with tempfile.TemporaryDirectory() as tmp:
+            input_path = Path(tmp) / "input.txt"
+            output_dir = Path(tmp) / "trip-output"
+            input_path.write_text(text, encoding="utf-8")
+            subprocess.run(
+                [
+                    sys.executable,
+                    str(SCRIPT),
+                    str(input_path),
+                    "--out",
+                    str(output_dir),
+                    "--mode",
+                    "estimate",
+                ],
+                check=True,
+                text=True,
+                capture_output=True,
+            )
+
+            data = json.loads((output_dir / "trip-data.json").read_text(encoding="utf-8"))
+            html = (output_dir / "trip.html").read_text(encoding="utf-8")
+            budget = data["budget"]
+            attraction_items = [item for item in budget["items"] if item["category"] == "attraction"]
+
+            self.assertTrue(budget["configured"])
+            self.assertEqual(data["days"][-1].get("notes") or [], [])
+            self.assertEqual(budget["assumptions"]["hotel"]["nights"], 9)
+            self.assertEqual(budget["assumptions"]["meal"]["days"], 10)
+            self.assertEqual(budget["assumptions"]["passengers"]["adults"], 2)
+            self.assertEqual(budget["assumptions"]["passengers"]["children_under_1_2m"], 1)
+            self.assertEqual(budget["assumptions"]["passengers"]["children_over_1_2m"], 0)
+            self.assertEqual(budget["category_totals"]["hotel"], 2700.0)
+            self.assertEqual(budget["category_totals"]["meal"], 1000.0)
+            self.assertEqual(budget["category_totals"]["attraction"], 520.0)
+            self.assertEqual(budget["category_totals"]["misc"], 300.0)
+            self.assertEqual([item["label"] for item in attraction_items], ["小七孔", "中国天眼"])
+            self.assertEqual([item["amount_cny"] for item in attraction_items], [240.0, 280.0])
+            self.assertIn("1.2m 以下儿童 1 人免票", html)
+
+    def test_natural_language_budget_child_over_1_2m_uses_half_price(self):
+        parsed = self.route_trip.parse_budget_text("""费用预算：
+两大一小（高于 1.2m）。
+景点门票：小七孔成人票 120 元。
+""")
+        data = {
+            "days": [{"day": "D1", "legs": [], "distance_km": 0.0, "duration_min": 0, "toll_cny": 0}],
+            "totals": {"distance_km": 0.0, "duration_min": 0, "toll_cny": 0},
+        }
+        budget = self.route_trip.build_budget(
+            data,
+            attractions=parsed["attractions"],
+            passengers=parsed["passengers"],
+        )
+
+        self.assertEqual(budget["assumptions"]["passengers"]["adults"], 2)
+        self.assertEqual(budget["assumptions"]["passengers"]["children_over_1_2m"], 1)
+        self.assertEqual(budget["category_totals"]["attraction"], 300.0)
+        self.assertEqual(budget["items"][0]["detail"], "成人 2 × ¥120；1.2m 以上儿童 1 × ¥60")
+
+    def test_budget_section_can_start_on_same_line(self):
+        itinerary_text, budget_text = self.route_trip.split_budget_section("""D1
+合肥 到 岳阳
+费用预算：两大一小（低于 1.2m），酒店每晚 300 元。
+""")
+        parsed = self.route_trip.parse_budget_text(budget_text)
+
+        self.assertIn("合肥 到 岳阳", itinerary_text)
+        self.assertEqual(parsed["passengers"]["adults"], 2)
+        self.assertEqual(parsed["passengers"]["children_under_1_2m"], 1)
+        self.assertEqual(parsed["hotel_nightly"], 300.0)
+
     def test_data_only_pdf_request_reports_warning(self):
         with tempfile.TemporaryDirectory() as tmp:
             output_dir = Path(tmp) / "trip-output"

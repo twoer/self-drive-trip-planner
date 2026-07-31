@@ -77,6 +77,14 @@ It skips HTML and map image generation.
       "hotel": 2700.0,
       "meal": 1000.0,
       "attraction": 260.0
+    },
+    "assumptions": {
+      "trip_days": 10,
+      "passengers": {
+        "adults": 2,
+        "children_under_1_2m": 1,
+        "children_over_1_2m": 0
+      }
     }
   },
   "totals": {
