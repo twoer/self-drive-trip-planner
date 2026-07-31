@@ -14,12 +14,8 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install dependencies
-        run: python -m pip install -r requirements.txt
+        run: make install
       - name: Run tests
-        run: |
-          python -m py_compile scripts/*.py
-          python -m unittest discover -s tests
+        run: make test
       - name: Build and check plugin package
-        run: |
-          make package-plugin
-          python scripts/check_plugin_package.py dist/self-drive-trip-planner
+        run: make check-plugin-package

@@ -25,6 +25,9 @@ make demo
 open trip-output/trip.html
 ```
 
+`make install` creates a local `.venv/` and installs dependencies there, so it
+works on modern macOS/Homebrew Python without writing to the system Python.
+
 `make demo` automatically uses Amap route data when `.env`, `AMAP_KEY`, or `GAODE_KEY` is configured. Without a key, it runs an estimated preview and records warnings in `trip-output/manifest.json`.
 
 For accurate mainland China routes, create a Web Service key in the [Gaode/Amap Open Platform console](https://console.amap.com/dev/key/app) and put it in local `.env`:
@@ -49,7 +52,7 @@ Then ask Codex to use `$self-drive-trip-planner` with an itinerary.
 
 Download the latest packaged plugin from GitHub Releases:
 
-[self-drive-trip-planner-plugin.zip](https://github.com/twoer/self-drive-trip-planner/releases/download/v0.1.1/self-drive-trip-planner-plugin.zip)
+[self-drive-trip-planner-plugin.zip](https://github.com/twoer/self-drive-trip-planner/releases/download/v0.1.2/self-drive-trip-planner-plugin.zip)
 
 For a step-by-step setup guide, see [INSTALL.md](INSTALL.md).
 
@@ -94,7 +97,7 @@ make check-plugin-package
 Install dependencies:
 
 ```bash
-python3 -m pip install -r requirements.txt
+make install
 ```
 
 Run an estimated fallback preview:

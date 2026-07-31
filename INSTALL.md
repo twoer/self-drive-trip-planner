@@ -19,6 +19,9 @@ Install Python dependencies:
 make install
 ```
 
+This creates a project-local `.venv/` and installs dependencies there. It does
+not write packages into your system Python.
+
 ## Quick Local Demo
 
 Generate a local demo page from `examples/simple-trip.txt`:
