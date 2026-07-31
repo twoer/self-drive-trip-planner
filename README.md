@@ -1,22 +1,26 @@
-# Self-Drive Trip Planner Skill
+# 自驾行程规划 Skill
 
-Codex skill for turning compact Chinese self-drive itinerary text into:
+这是一个给 Codex / Agent 使用的自驾行程规划 skill。你可以输入类似 `D1/D2` 的中文行程文本，它会生成可核验的行程数据、手机友好的网页、交互式路线地图，并可选生成费用预算和 PDF。
 
-- normalized `trip-data.json`
-- mobile-friendly Chinese itinerary HTML
-- interactive route map plus optional shareable PNG/SVG image
-- optional rough budget estimate and cost tab
-- optional PDF export
-- clearly marked estimated fallback output when no map API key is available
-- machine-readable `manifest.json` so agents can verify files, warnings, and data source
+主要能力：
 
-## Live Demo
+- 解析中文行程：支持 `D1`、`D2`、`合肥 到 岳阳`、`重庆 回 合肥` 这类写法
+- 生成标准数据：`trip-data.json`、`manifest.json`
+- 生成中文网页：默认输出 `trip.html`，GitHub Pages 输出 `docs/index.html`
+- 生成路线地图：HTML 内置交互式 Leaflet 地图，可选输出 `route-map.png`
+- 支持高德真实路线：距离、时长、过路费、路线点位来自高德 Web 服务
+- 支持无 key 预览：没有地图 key 时会用估算模式，并在 `manifest.json` 里明确标记
+- 支持费用预算：电车补能、住宿、餐饮、景点门票、摆渡车、保险等
+- 支持 PDF 导出：安装 Playwright 后可生成 PDF
+- 适合 Agent 集成：每次运行都会写入 `manifest.json`，方便下游检查文件、警告和数据来源
 
-[Open the generated static demo](https://twoer.github.io/self-drive-trip-planner/)
+## 在线 Demo
 
-The published demo is generated from `examples/simple-trip.txt` with Gaode/Amap API data, then committed as static HTML/JSON/image files under `docs/`. No API key is stored in this repository.
+[打开 GitHub Pages Demo](https://twoer.github.io/self-drive-trip-planner/)
 
-## 30-Second Start
+这个公开 demo 使用 `examples/simple-trip.txt` 生成，路线数据来自高德 / Amap API。仓库只提交生成后的静态 HTML、JSON 和图片，不保存任何 API key。
+
+## 30 秒快速开始
 
 ```bash
 git clone https://github.com/twoer/self-drive-trip-planner.git
@@ -27,97 +31,111 @@ make demo
 open trip-output/trip.html
 ```
 
-`make install` creates a local `.venv/` and installs dependencies there, so it
-works on modern macOS/Homebrew Python without writing to the system Python.
+说明：
 
-`make demo` automatically uses Amap route data when `.env`, `AMAP_KEY`, or `GAODE_KEY` is configured. Without a key, it runs an estimated preview and records warnings in `trip-output/manifest.json`.
+- `make install` 会创建本地 `.venv/` 并安装依赖，不污染系统 Python。
+- `make setup` 会引导你创建本地 `.env`。
+- `make demo` 会优先使用 `.env`、`AMAP_KEY` 或 `GAODE_KEY` 里的高德 key。
+- 如果没有 key，会生成估算版预览，并在 `trip-output/manifest.json` 里写明 warning。
 
-For accurate mainland China routes, create a Web Service key in the [Gaode/Amap Open Platform console](https://console.amap.com/dev/key/app) and put it in local `.env`:
+## 配置高德 Key
+
+国内自驾路线建议使用高德 Web 服务 key。你可以在 [高德开放平台控制台](https://console.amap.com/dev/key/app) 创建 Web 服务 Key，然后写入本地 `.env`：
 
 ```bash
-AMAP_KEY=your-gaode-web-service-key
+AMAP_KEY=你的高德Web服务Key
 ```
 
-The local `.env` file is ignored by git and is not copied into generated plugin packages.
+也支持：
 
-## Install As A Codex Skill
+```bash
+GAODE_KEY=你的高德Web服务Key
+```
 
-Install a clean copy into the default Codex skills directory:
+本地 `.env` 已被 git 忽略，也不会被打进插件包。
+
+## 安装成 Codex Skill
+
+安装到默认 Codex skills 目录：
 
 ```bash
 make install-skill
 ```
 
-Then ask Codex to use `$self-drive-trip-planner` with an itinerary.
+之后可以在 Codex 中让它使用 `$self-drive-trip-planner` 处理行程。
 
-## Plugin Package
+## 安装成 Codex 插件
 
-Download the latest packaged plugin from GitHub Releases:
+下载最新插件包：
 
 [self-drive-trip-planner-plugin.zip](https://github.com/twoer/self-drive-trip-planner/releases/download/v0.3.1/self-drive-trip-planner-plugin.zip)
 
-For a step-by-step setup guide, see [INSTALL.md](INSTALL.md).
+完整安装说明见 [INSTALL.md](INSTALL.md)。
 
-Install this repository into your personal Codex plugin marketplace:
+如果你想把当前仓库安装到自己的本地 Codex 插件市场：
 
 ```bash
 make install-plugin
 ```
 
-This builds the plugin, copies it to `~/plugins/self-drive-trip-planner`, updates
-`~/.agents/plugins/marketplace.json`, and runs
-`codex plugin add self-drive-trip-planner@personal`. Start a new Codex task after
-installing so the newly installed skill list is refreshed.
+这个命令会：
 
-Build a clean skills-only Codex plugin package:
+- 构建干净的插件包
+- 复制到 `~/plugins/self-drive-trip-planner`
+- 更新 `~/.agents/plugins/marketplace.json`
+- 执行 `codex plugin add self-drive-trip-planner@personal`
+
+安装后请新开一个 Codex task，让 skill 列表刷新。
+
+构建可分发的插件包：
 
 ```bash
 make package-plugin
 ```
 
-This writes:
+输出文件：
 
 - `dist/self-drive-trip-planner/`
 - `dist/self-drive-trip-planner-plugin.zip`
 
-The package excludes generated trip outputs, local caches, `.env`, and repository metadata. It contains only the plugin manifest plus the skill files needed to run locally.
+插件包会排除生成产物、本地缓存、`.env` 和 `.git` 等仓库元数据，只保留运行 skill 需要的文件。
 
-Validate the generated plugin package when the local Codex plugin validator is available:
-
-```bash
-make validate-plugin
-```
-
-Run the portable package checks used by CI:
+校验插件包：
 
 ```bash
 make check-plugin-package
 ```
 
-## CLI Usage
+如果本地有 Codex plugin validator，也可以运行：
 
-Install dependencies:
+```bash
+make validate-plugin
+```
+
+## CLI 用法
+
+先安装依赖：
 
 ```bash
 make install
 ```
 
-Run an estimated fallback preview:
+生成估算版预览：
 
 ```bash
 python3 scripts/route_trip.py examples/simple-trip.txt --out ./trip-output --title "Demo 自驾游" --mode estimate
 ```
 
-Run with required Gaode/Amap route data:
+要求必须使用高德真实路线数据：
 
 ```bash
-export AMAP_KEY="your-gaode-web-service-key"
+export AMAP_KEY="你的高德Web服务Key"
 python3 scripts/route_trip.py examples/simple-trip.txt --out ./trip-output --title "Demo 自驾游" --mode accurate
 ```
 
-`GAODE_KEY` is also supported.
+## 可直接复制的完整输入示例
 
-Copy-ready full input example:
+你可以把下面整段复制给 Agent 或保存成文本文件，然后替换成自己的路线、人数和费用：
 
 ```text
 我们是两大一小（低于 1.2m），
@@ -156,14 +174,19 @@ D10
 重庆 回 合肥
 ```
 
-Replace the traveler count, EV price/consumption, hotel, meals, scenic areas,
-and `D1`/`D2` route lines with your own trip. The CLI does not look up ticket
-prices by itself; it only parses the prices you include in the text. When using
-an agent, you can write only the scenic names first and ask the agent to look up
-official/authoritative prices, then add them under `已确认景区价格：` before
-running the generator.
+替换建议：
 
-Run with a rough budget estimate. Append a `费用预算：` section to the itinerary:
+- 把 `两大一小` 改成真实出行人数
+- 把 `低于 1.2m` 或 `高于 1.2m` 改成儿童实际情况
+- 把电价、百公里电耗、酒店、餐费改成你的预算
+- 把景区名称和已确认价格改成你的行程
+- 把 `D1`、`D2` 路线换成自己的每日路线
+
+注意：CLI 默认不会自动联网查门票价格，它只解析你输入文本里的价格。如果你用 Codex / Agent，可以先只写景区名，让 Agent 查询官方或权威来源，再把查到的价格补到 `已确认景区价格：` 后面再运行生成。
+
+## 费用预算写法
+
+费用可以放在行程开头，也可以追加 `费用预算：` 段落：
 
 ```text
 费用预算：
@@ -172,17 +195,25 @@ Run with a rough budget estimate. Append a `费用预算：` section to the itin
 小七孔成人票 120 元，中国天眼成人票 140 元。
 ```
 
-It also supports per-scenic-area fee components:
+也支持景区组件费用：
 
 ```text
 景点门票：天眼景区门票不要钱，摆渡车 50 元一人，保险 10 元一人。
 ```
 
-When using Codex, you can provide attraction names and ask the agent to look up
-current official/authoritative prices before running the generator. Direct CLI
-runs are offline and need the prices included in `费用预算：`.
+费用规则：
 
-CLI equivalent:
+- 酒店晚数默认等于 `行程天数 - 1`
+- 餐费天数默认等于 `行程天数`
+- 成人票按全价计算
+- 低于 1.2m 儿童默认免票
+- 高于或等于 1.2m 儿童默认半价
+- `摆渡车 50 元一人`、`保险 10 元一人` 会按总人数计算
+- 识别到 `小七孔`、`黄果树`、`韶山`、`中国天眼` 等景区但没有配置价格时，会在费用页显示 `待补景点费用`
+- 待补景点费用只做提醒，不会计入总费用
+- 如果完全没有费用输入，费用 tab 会显示“费用计算未启用”的激活提醒
+
+等价 CLI 参数示例：
 
 ```bash
 python3 scripts/route_trip.py examples/simple-trip.txt \
@@ -199,58 +230,32 @@ python3 scripts/route_trip.py examples/simple-trip.txt \
   --attraction 中国天眼=140
 ```
 
-Hotel nights default to trip days minus one; meal days default to the trip day count.
-For attraction tickets, adults use full price, children below 1.2m are free, and
-children at or above 1.2m use half adult price.
-For components such as shuttle bus or insurance marked as `一人`/`每人`, the
-calculator multiplies the fee by all travelers.
-The generator also detects known scenic stops such as `小七孔`, `黄果树`,
-`韶山`, and `中国天眼`. If a detected scenic area has no configured ticket or
-transport fee, the `费用` tab shows it under `待补景点费用`; it is not included
-in the total until you provide a price.
-If no budget inputs are provided, the generated `费用` tab shows an activation
-reminder instead of pretending to calculate a total trip budget.
+## 导出 PDF
 
-Export a PDF when Playwright is installed:
+PDF 依赖 Playwright。安装后运行：
 
 ```bash
 make install-pdf
 make demo-pdf
 ```
 
-When Playwright is missing, PDF generation is skipped and the reason is written
-to `manifest.json`.
+如果 Playwright 没安装，PDF 会跳过生成，原因会写入 `manifest.json`。
 
-Mode summary:
+## 运行模式
 
-- `auto`: default; use API when a key is configured, otherwise estimate.
-- `estimate`: skip API and clearly mark estimated route metrics.
-- `accurate`: require every driving leg to use complete Amap data; exits non-zero if not.
-- `publish-demo`: like `accurate`, defaults output to `docs/` for GitHub Pages.
-- `data-only`: write only `trip-data.json` and `manifest.json`.
+- `auto`：默认模式；有 key 用高德 API，没有 key 用估算
+- `estimate`：跳过 API，生成估算版，并明确标记数据来源
+- `accurate`：要求每段驾车路线都必须来自高德 API，否则失败退出
+- `publish-demo`：用于 GitHub Pages，会把结果写到 `docs/`
+- `data-only`：只输出 `trip-data.json` 和 `manifest.json`，不生成网页和地图
 
-Legacy `--no-api` is still accepted as an alias for `--mode estimate`.
+兼容旧参数：`--no-api` 仍可使用，等价于 `--mode estimate`。
 
-Every run writes `manifest.json`; read it first when integrating from an agent.
+每次运行都会写 `manifest.json`。Agent 集成时应该优先读取它。
 
-### Optional: generate a shareable route-map image
+## 输入格式
 
-`trip.html` always includes an interactive Leaflet map (real driving route,
-pan/zoom/click) that needs no extra dependencies — only a browser with network
-access to load the map tiles.
-
-To additionally produce a standalone `route-map.png` (e.g. for sharing in
-chat or embedding in a document), install Playwright:
-
-```bash
-python3 -m pip install playwright
-python3 -m playwright install chromium
-```
-
-When Playwright is not installed, PNG generation is skipped silently; the
-interactive HTML map is unaffected.
-
-## Input Format
+基础格式：
 
 ```text
 D1
@@ -280,64 +285,97 @@ D10
 重庆 回 合肥
 ```
 
-Supported route connectors: `到`, `回`, `返回`, `->`, `→`.
+支持的路线连接词：
 
-Lines without route connectors, such as `贵阳市区`, are treated as non-driving stay notes. They appear in JSON and HTML, but do not count toward driving distance, duration, toll, or route-map paths.
+- `到`
+- `回`
+- `返回`
+- `->`
+- `→`
 
-## API Keys And Safety
+没有路线连接词的行，例如 `贵阳市区`，会被当作当天停留备注。它会出现在 JSON 和 HTML 里，但不会计入驾车里程、时长、过路费和路线地图。
 
-Do not commit API keys. Use environment variables:
+## 地图图片
+
+`trip.html` 默认包含交互式 Leaflet 地图，可以缩放、拖动、点击路段查看详情。浏览器需要能访问地图瓦片资源。
+
+如果还想额外生成可分享的 `route-map.png`，安装 Playwright：
+
+```bash
+python3 -m pip install playwright
+python3 -m playwright install chromium
+```
+
+没有 Playwright 时，PNG 会跳过生成，交互式 HTML 地图不受影响。
+
+## API Key 和安全说明
+
+不要提交 API key。请使用环境变量或本地 `.env`：
 
 - `AMAP_KEY`
 - `GAODE_KEY`
 
-If no key is available, the script uses coordinate-based estimates where possible and marks generated metrics with `source: "estimated"` and `estimated: true`.
+没有 key 时，脚本会尽量根据坐标估算，并在输出里标记：
 
-Route distance, duration, tolls, and route polylines come from the configured map service when API mode is used. Users are responsible for following the provider's terms and verifying metrics before booking or departure.
+- `source: "estimated"`
+- `estimated: true`
 
-## Agent Contract
+使用 API 模式时，路线距离、时长、过路费和路线折线来自配置的地图服务。出发、预订或导航前，请以地图服务、景区、酒店和现场信息为准。
 
-This repository is shaped to be called by another agent with a low-friction contract:
+## Agent 集成约定
 
-- pass itinerary text to `scripts/route_trip.py`
-- choose an explicit `--mode`
-- read `manifest.json`
-- verify every non-null path in `manifest.files`
-- report `manifest.data_source`, `manifest.totals`, and `manifest.warnings`
+这个仓库适合被另一个 Agent 调用。推荐流程：
 
-For GitHub Pages, `--mode publish-demo` writes `docs/index.html` plus `trip-data.json`, `manifest.json`, and a route-map asset.
+1. 把用户行程文本传给 `scripts/route_trip.py`
+2. 明确选择 `--mode`
+3. 读取 `manifest.json`
+4. 检查 `manifest.files` 里的文件是否存在
+5. 向用户报告 `manifest.data_source`、`manifest.totals` 和 `manifest.warnings`
 
-## Development
-
-Run the fast checks:
-
-```bash
-python3 -m py_compile scripts/route_trip.py
-python3 -m unittest discover -s tests
-```
-
-Generate a local estimated fallback demo:
-
-```bash
-make demo-estimate
-```
-
-Generate a local API-backed demo when `AMAP_KEY` or `GAODE_KEY` is configured:
-
-```bash
-make demo-api
-```
-
-Generate the GitHub Pages demo:
+GitHub Pages demo 使用：
 
 ```bash
 make pages-demo
 ```
 
-Generate 20 dense random demo trips for UI stress testing:
+它会生成：
+
+- `docs/index.html`
+- `docs/trip-data.json`
+- `docs/manifest.json`
+- `docs/route-map.png`
+- `docs/.nojekyll`
+
+## 开发命令
+
+运行测试：
+
+```bash
+make test
+```
+
+生成本地估算 demo：
+
+```bash
+make demo-estimate
+```
+
+有 `AMAP_KEY` 或 `GAODE_KEY` 时，生成高德 API demo：
+
+```bash
+make demo-api
+```
+
+生成 GitHub Pages demo：
+
+```bash
+make pages-demo
+```
+
+生成 20 条高密度随机 demo，用于 UI 压测：
 
 ```bash
 make demo-batch
 ```
 
-Generated outputs are ignored by git.
+生成产物默认被 git 忽略，`docs/` 除外。`docs/` 用于 GitHub Pages，需要提交。
