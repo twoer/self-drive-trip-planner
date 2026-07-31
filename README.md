@@ -47,6 +47,10 @@ Then ask Codex to use `$self-drive-trip-planner` with an itinerary.
 
 ## Plugin Package
 
+Download the latest packaged plugin from GitHub Releases:
+
+[self-drive-trip-planner-plugin.zip](https://github.com/twoer/self-drive-trip-planner/releases/download/v0.1.0/self-drive-trip-planner-plugin.zip)
+
 Build a clean skills-only Codex plugin package:
 
 ```bash
