@@ -61,13 +61,9 @@ export GAODE_KEY="your-gaode-web-service-key"
 
 If no key is available, still run the script. Keep the generated estimates visibly marked and tell the user they should verify route metrics before booking or departure.
 
-For manual visual editing, start the local editor:
-
-```bash
-make editor
-```
-
-Use this when the user wants to paste an itinerary, edit D1/D2 cards, adjust route legs or stay notes, and generate outputs from a browser. The editor is served by `scripts/editor_server.py`; when `editor/dist` exists, it serves the Vue 3 + TypeScript + Tailwind UI, otherwise it falls back to the bundled HTML. The editor writes to `trip-output/editor` and still uses the same route generation engine. After generation, read `trip-output/editor/manifest.json` before reporting results.
+This skill is intentionally text-first. When a user wants to edit a trip, ask for
+the updated D1/D2 text or update the input file, then rerun the CLI and verify
+the generated manifest.
 
 ## Input Rules
 

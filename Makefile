@@ -8,7 +8,7 @@ CODEX_SKILLS_DIR ?= $(HOME)/.codex/skills
 PLUGIN_CREATOR_DIR ?= $(HOME)/.codex/skills/.system/plugin-creator
 PLUGIN_VALIDATOR ?= $(PLUGIN_CREATOR_DIR)/scripts/validate_plugin.py
 
-.PHONY: install install-pdf setup demo editor editor-build editor-dev install-skill install-plugin test demo-estimate demo-api demo-data demo-pdf demo-batch pages-demo package-plugin check-plugin-package validate-plugin
+.PHONY: install install-pdf setup demo install-skill install-plugin test demo-estimate demo-api demo-data demo-pdf demo-batch pages-demo package-plugin check-plugin-package validate-plugin
 
 $(PYTHON):
 	$(BOOTSTRAP_PYTHON) -m venv $(VENV)
@@ -27,16 +27,6 @@ setup: $(PYTHON)
 demo: install
 	$(PYTHON) scripts/run_demo.py --out $(OUT) --title "$(TITLE)" --start-date $(START_DATE)
 
-editor: install
-	$(PYTHON) scripts/editor_server.py
-
-editor-build:
-	pnpm --dir editor install
-	pnpm --dir editor build
-
-editor-dev:
-	pnpm --dir editor dev
-
 install-skill: $(PYTHON)
 	$(PYTHON) scripts/install_skill.py --dest $(CODEX_SKILLS_DIR)
 
@@ -44,7 +34,7 @@ install-plugin: $(PYTHON)
 	$(PYTHON) scripts/install_plugin_local.py
 
 test: install
-	$(PYTHON) -m py_compile scripts/route_trip.py scripts/leaflet_map.py scripts/editor_server.py
+	$(PYTHON) -m py_compile scripts/route_trip.py scripts/leaflet_map.py
 	$(PYTHON) -m unittest discover -s tests
 
 demo-estimate: install
@@ -66,7 +56,7 @@ pages-demo: install
 	$(PYTHON) scripts/route_trip.py examples/simple-trip.txt --out docs --title "Self-Drive Trip Planner Demo" --start-date $(START_DATE) --mode publish-demo
 	touch docs/.nojekyll
 
-package-plugin: $(PYTHON) editor-build
+package-plugin: $(PYTHON)
 	$(PYTHON) scripts/package_plugin.py --out dist
 
 check-plugin-package: package-plugin

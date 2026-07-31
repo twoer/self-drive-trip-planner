@@ -38,36 +38,6 @@ open trip-output/trip.html
 - `make demo` 会优先使用 `.env`、`AMAP_KEY` 或 `GAODE_KEY` 里的高德 key。
 - 如果没有 key，会生成估算版预览，并在 `trip-output/manifest.json` 里写明 warning。
 
-## 本地可视化编辑器
-
-如果你不想直接写文本文件，可以启动本地编辑器：
-
-```bash
-make editor
-```
-
-然后打开：
-
-```text
-http://127.0.0.1:8765
-```
-
-编辑器支持粘贴自然语言行程、解析成 D1/D2 卡片、增删每天、编辑路线段和停留备注、调整费用文本，并调用同一套生成引擎输出到 `trip-output/editor`。需要 PDF 时，可以在生成区勾选 `导出 PDF`。
-
-编辑器前端使用 Vue 3 + TypeScript + Tailwind 构建，插件包会携带已经构建好的 `editor/dist`，普通用户运行 `make editor` 不需要安装 Node。开发编辑器时可以运行：
-
-```bash
-make editor-dev
-```
-
-重新构建前端：
-
-```bash
-make editor-build
-```
-
-编辑器默认使用 `estimate` 模式，方便没有高德 key 的用户先预览。配置 `AMAP_KEY` 或 `GAODE_KEY` 后，可以切换到 `auto` 或 `accurate`。
-
 ## 配置高德 Key
 
 国内自驾路线建议使用高德 Web 服务 key。你可以在 [高德开放平台控制台](https://console.amap.com/dev/key/app) 创建 Web 服务 Key，然后写入本地 `.env`：
@@ -98,7 +68,7 @@ make install-skill
 
 下载最新插件包：
 
-[self-drive-trip-planner-plugin.zip](https://github.com/twoer/self-drive-trip-planner/releases/download/v0.5.1/self-drive-trip-planner-plugin.zip)
+[GitHub Releases](https://github.com/twoer/self-drive-trip-planner/releases)
 
 完整安装说明见 [INSTALL.md](INSTALL.md)。
 
@@ -270,16 +240,6 @@ make demo-pdf
 ```
 
 如果 Playwright 没安装，PDF 会跳过生成，原因会写入 `manifest.json`。
-
-## SaaS 化方向
-
-当前仓库已经把三层边界拆开：
-
-- 路线和费用引擎：`scripts/route_trip.py`
-- 本地 API：`scripts/editor_server.py`
-- 可视化编辑器：`editor/`
-
-开源版先保持轻量，不内置账号、云端草稿和分享系统。如果后续做 SaaS 版本，建议保留前端编辑体验，把 Python 引擎抽成后端服务接口，再补用户账号、行程草稿、分享页、公开/私密权限、异步高德路线刷新和价格来源缓存。本地 skill 仍然适合 Agent 自动生成，SaaS 版本适合普通用户自己创建、分享和查看。
 
 ## 运行模式
 

@@ -6,7 +6,7 @@ Use this file as the copy/paste source when preparing an external plugin or mark
 
 - Name: Self-Drive Trip Planner
 - Plugin ID: `self-drive-trip-planner`
-- Version: `0.5.1`
+- Version: `0.6.0`
 - Developer: twoer
 - Category: Productivity
 - Repository: https://github.com/twoer/self-drive-trip-planner
@@ -58,9 +58,9 @@ Self-Drive Trip Planner turns compact D1/D2 Chinese road-trip text into normaliz
 
 ## Release Asset
 
-Download the plugin package:
+After publishing `v0.6.0`, download the plugin package:
 
-https://github.com/twoer/self-drive-trip-planner/releases/download/v0.5.1/self-drive-trip-planner-plugin.zip
+https://github.com/twoer/self-drive-trip-planner/releases/download/v0.6.0/self-drive-trip-planner-plugin.zip
 
 ## Pre-Submission Checklist
 
