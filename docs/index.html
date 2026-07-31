@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Self-Drive Trip Planner Demo</title>
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+:root {
+  --primary: #2C6BB2;
+  --bg: #F6F8FA;
+  --card: #FFFFFF;
+  --accent: #D97036;
+  --green: #25945B;
+  --text: #26313B;
+  --text2: #7B8490;
+  --line: #E9EDF2;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { min-height: 100%; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  font-size: 14px;
+}
+svg { stroke-width: 2; }
+.app { max-width: 520px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; }
+.header { padding: 16px 20px 10px; flex-shrink: 0; }
+.header h1 { font-size: 18px; font-weight: 800; letter-spacing: 0; }
+.subtitle { font-size: 11px; color: var(--text2); margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tabs { display: flex; align-items: center; gap: 6px; padding: 0 20px 10px; overflow-x: auto; scrollbar-width: none; flex-shrink: 0; }
+.tabs::-webkit-scrollbar { display: none; }
+.tab {
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--text2);
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.tab.active { background: var(--primary); border-color: var(--primary); color: #FFFFFF; font-weight: 700; }
+.main { flex: 1; min-height: 0; }
+.tab-panel { display: none; padding: 8px 20px 28px; }
+.tab-panel.active { display: block; }
+.overview-stack { display: grid; gap: 10px; }
+.overview-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.stat-tile {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 10px;
+  min-width: 0;
+}
+.stat-tile .ui-icon-text { color: var(--text2); font-size: 11px; }
+.stat-tile .value { margin-top: 7px; color: var(--primary); font-size: 16px; font-weight: 900; line-height: 1.15; word-break: break-word; }
+.stat-tile .hint { margin-top: 2px; color: var(--text2); font-size: 10px; }
+.day-pager { display: grid; gap: 10px; }
+.pager-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.pager-title { min-width: 0; }
+.pager-kicker { font-size: 11px; color: var(--text2); }
+.pager-current { margin-top: 2px; font-size: 16px; font-weight: 800; color: var(--text); word-break: break-word; }
+.pager-actions { display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.pager-button {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.pager-button:focus-visible, .tab:focus-visible { outline: 2px solid color-mix(in srgb, var(--primary) 60%, white); outline-offset: 2px; }
+.pager-button svg { width: 17px; height: 17px; flex-shrink: 0; }
+.slider {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+  touch-action: pan-x;
+}
+.slider::-webkit-scrollbar { display: none; }
+.slide { flex: 0 0 100%; min-width: 0; scroll-snap-align: start; }
+.pager-dots { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 18px; }
+.pager-dot {
+  width: 7px;
+  height: 7px;
+  border: 0;
+  border-radius: 999px;
+  background: #C9D2DE;
+  cursor: pointer;
+}
+.pager-dot.active { width: 20px; background: var(--primary); }
+.day-card, .ov-day-card, .t-card, .big-card, .map-card {
+  background: var(--card);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 8px rgba(20, 33, 48, 0.05);
+}
+.day-top { padding: 18px 18px 14px; border-bottom: 1px solid var(--line); }
+.day-num { font-size: 12px; color: var(--primary); font-weight: 800; }
+.day-title { font-size: 17px; font-weight: 800; margin-top: 3px; word-break: break-word; }
+.day-date { font-size: 12px; color: var(--text2); margin-top: 3px; }
+.item { display: flex; align-items: flex-start; gap: 12px; padding: 13px 18px; border-bottom: 1px solid var(--line); }
+.item:last-child { border-bottom: 0; }
+.item-icon { width: 22px; display: flex; justify-content: center; padding-top: 2px; flex-shrink: 0; }
+.item-icon svg, .ui-icon-text svg { width: 16px; height: 16px; flex-shrink: 0; }
+.item-icon svg { stroke: var(--primary); }
+.item-body { flex: 1; min-width: 0; }
+.item-label { font-size: 11px; color: var(--text2); }
+.item-text { font-size: 13px; word-break: break-word; }
+.item-right { flex-shrink: 0; text-align: right; font-size: 11px; color: var(--text2); line-height: 1.45; }
+.day-foot { display: flex; align-items: center; gap: 8px; padding: 13px 18px; background: #FAFBFC; border-top: 1px solid var(--line); }
+.stat { flex: 1; text-align: center; min-width: 0; }
+.stat-num { font-size: 15px; font-weight: 800; color: var(--primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stat-lbl { font-size: 10px; color: var(--text2); margin-top: 1px; }
+.ov-day-card { margin-bottom: 8px; }
+.ov-day-head { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.ov-day-tag { font-size: 12px; font-weight: 800; color: var(--primary); min-width: 28px; }
+.ov-day-route { flex: 1; min-width: 0; font-size: 14px; font-weight: 700; word-break: break-word; }
+.ov-day-dist { font-size: 13px; color: var(--accent); font-weight: 800; flex-shrink: 0; }
+.ov-day-body { display: flex; align-items: center; gap: 14px; padding: 9px 16px 12px; color: var(--text2); font-size: 12px; }
+.ui-icon-text { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.t-card { display: flex; align-items: center; gap: 10px; padding: 14px 16px; margin-bottom: 8px; }
+.t-day { font-size: 13px; font-weight: 800; color: var(--primary); min-width: 30px; }
+.t-route { flex: 1; min-width: 0; }
+.t-route .name { font-size: 13px; word-break: break-word; }
+.t-route .info { font-size: 11px; color: var(--text2); }
+.t-fee { font-size: 15px; font-weight: 800; color: var(--accent); flex-shrink: 0; }
+.big-card { padding: 24px 20px; text-align: center; margin-top: 8px; }
+.big-card .num { font-size: 32px; font-weight: 900; color: var(--primary); }
+.big-card .lbl { font-size: 12px; color: var(--text2); margin-top: 4px; }
+.map-card { padding: 12px; }
+.map-scroll { overflow: hidden; }
+.map-scroll a { display: block; }
+.map-scroll img { display: block; width: 100%; height: auto; border-radius: 8px; border: 1px solid var(--line); }
+.map-note { padding: 9px 4px 2px; font-size: 11px; color: var(--text2); text-align: center; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="header">
+    <h1>Self-Drive Trip Planner Demo</h1>
+    <div class="subtitle">合肥 → 岳阳 → 韶山 → 凤凰古城 → 荔波 → 小七孔 → 中国天眼 → 安顺 → 黄果树 → 贵阳 → 茅台镇红军桥 → 遵义会议遗址 → 重庆 → 合肥</div>
+  </header>
+  <nav class="tabs" aria-label="行程视图">
+    <button class="tab active" data-tab="overview">总览</button>
+    <button class="tab" data-tab="daily">行程</button>
+  </nav>
+  <main class="main">
+    <section class="tab-panel active" id="tab-overview">
+      <div class="overview-stack">
+        <div class="map-card"><div class="map-scroll"><a href="./route-map.svg?v=1785462215868677670" target="_blank" rel="noopener"><img src="./route-map.svg?v=1785462215868677670" alt="Self-Drive Trip Planner Demo线路图"></a></div><div class="map-note">示意线路图（地图服务不可用时降级） · 点开看大图</div></div>
+        <div class="overview-stats">
+          <div class="stat-tile"><span class="ui-icon-text"><i data-lucide="route"></i><span>总里程</span></span><div class="value">2642.0km</div><div class="hint">全程驾车</div></div>
+          <div class="stat-tile"><span class="ui-icon-text"><i data-lucide="clock"></i><span>总时长</span></span><div class="value">36h41m</div><div class="hint">不含停留</div></div>
+          <div class="stat-tile"><span class="ui-icon-text"><i data-lucide="banknote"></i><span>过路费</span></span><div class="value">¥1319</div><div class="hint">估算参考</div></div>
+        </div>
+        <div><div class="ov-day-card">
+  <div class="ov-day-head">
+    <span class="ov-day-tag">D1</span>
+    <span class="ov-day-route">合肥 → 岳阳</span>
+    <span class="ov-day-dist">645.8km</span>
+  </div>
+  <div class="ov-day-body">
+    <div class="ov-line"><span class="ui-icon-text"><i data-lucide="clock"></i><span>8h58m</span></span></div>
+    <div class="ov-line"><span class="ui-icon-text"><i data-lucide="banknote"></i><span>¥323</span></span></div>
+  </div>
+</div><div class="ov-day-card">
+  <div class="ov-day-head">
+    <span class="ov-day-tag">D2</span>
+    <span class="ov-day-route">岳阳 → 韶山</span>
+    <span class="ov-day-dist">230.6km</span>
+  </div>
+  <div class="ov-day-body">
+    <div class="ov-line"><span class="ui-icon-text"><i data-lucide="clock"></i><span>3h12m</span></span></div>
+    <div class="ov-line"><span class="ui-icon-text"><i data-lucide="banknote"></i><span>¥115</span></span></div>
+  </div>
+</div><div class="ov-day-card">
+  <div class="ov-day-head">
+    <span class="ov-day-tag">D3</span>
+    <span class="ov-day-route">韶山 → 凤凰古城</span>
+    <span class="ov-day-dist">388.2km</span>
+  </div>
+  <div class="ov-day-body">
+    <div class="ov-line"><span class="ui-icon-text"><i data-lucide="clock"></i><span>5h24m</span></span></div>
+    <div class="ov-line"><span class="ui-icon-text"><i data-lucide="banknote"></i><span>¥194</span></span></div>
+  </div>
+</div><div class="ov-day-card">
+  <div class="ov-day-head">
+    <span class="ov-day-tag">D4</span>
+    <span class="ov-day-route">凤凰古城 → 荔波</span>
+    <span class="ov-day-dist">444.8km</span>
+  </div>
+  <div class="ov-day-body">
+    <div class="ov-line"><span class="ui-icon-text"><i data-lucide="clock"></i><span>6h11m</span></span></div>
+    <div class="ov-line"><span class="ui-icon-text"><i data-lucide="banknote"></i><span>¥222</span></span></div>
+  </div>
+</div><div class="ov-day-card">
+  <div class="ov-day-head">
+    <span class="ov-day-tag">D5</span>
+    <span class="ov-day-route">荔波 → 小七孔 → 中国天眼 → 安顺</span>
+    <span class="ov-day-dist">315.4km</span>
+  </div>
+  <div class="ov-day-body">
+    <div class="ov-line"><span class="ui-icon-text"><i data-lucide="clock"></i><span>4h23m</span></span></div>
+    <div class="ov-line"><span class="ui-icon-text"><i data-lucide="banknote"></i><span>¥157</span></span></div>
+  </div>
+</div><div class="ov-day-card">
+  <div class="ov-day-head">
+    <span class="ov-day-tag">D6</span>
+    <span class="ov-day-route">安顺 → 黄果树 → 贵阳</span>
+    <span class="ov-day-dist">217.2km</span>
+  </div>
+  <div class="ov-day-body">
+    <div class="ov-line"><span class="ui-icon-text"><i data-lucide="clock"></i><span>3h1m</span></span></div>
+    <div class="ov-line"><span class="ui-icon-text"><i data-lucide="banknote"></i><span>¥108</span></span></div>
+  </div>
+</div><div class="ov-day-card">
+  <div class="ov-day-head">
+    <span class="ov-day-tag">D7</span>
+    <span class="ov-day-route">贵阳市区</span>
+    <span class="ov-day-dist">0.0km</span>
+  </div>
+  <div class="ov-day-body">
+    <div class="ov-line"><span class="ui-icon-text"><i data-lucide="clock"></i><span>0m</span></span></div>
+    <div class="ov-line"><span class="ui-icon-text"><i data-lucide="banknote"></i><span>¥0</span></span></div>
+  </div>
+</div><div class="ov-day-card">
+  <div class="ov-day-head">
+    <span class="ov-day-tag">D8</span>
+    <span class="ov-day-route">贵阳 → 茅台镇红军桥 → 遵义会议遗址 → 重庆</span>
+    <span class="ov-day-dist">300.0km</span>
+  </div>
+  <div class="ov-day-body">
+    <div class="ov-line"><span class="ui-icon-text"><i data-lucide="clock"></i><span>4h9m</span></span></div>
+    <div class="ov-line"><span class="ui-icon-text"><i data-lucide="banknote"></i><span>¥150</span></span></div>
+  </div>
+</div><div class="ov-day-card">
+  <div class="ov-day-head">
+    <span class="ov-day-tag">D9</span>
+    <span class="ov-day-route">重庆市区</span>
+    <span class="ov-day-dist">0.0km</span>
+  </div>
+  <div class="ov-day-body">
+    <div class="ov-line"><span class="ui-icon-text"><i data-lucide="clock"></i><span>0m</span></span></div>
+    <div class="ov-line"><span class="ui-icon-text"><i data-lucide="banknote"></i><span>¥0</span></span></div>
+  </div>
+</div><div class="ov-day-card">
+  <div class="ov-day-head">
+    <span class="ov-day-tag">D10</span>
+    <span class="ov-day-route">重庆 → 合肥</span>
+    <span class="ov-day-dist">100.0km</span>
+  </div>
+  <div class="ov-day-body">
+    <div class="ov-line"><span class="ui-icon-text"><i data-lucide="clock"></i><span>1h23m</span></span></div>
+    <div class="ov-line"><span class="ui-icon-text"><i data-lucide="banknote"></i><span>¥50</span></span></div>
+  </div>
+</div></div>
+      </div>
+    </section>
+    <section class="tab-panel" id="tab-daily">
+      <div class="day-pager">
+        <div class="pager-head">
+          <div class="pager-title"><div class="pager-kicker">DAY <span id="pagerIndex">1</span> / 10</div><div class="pager-current" id="pagerTitle">合肥 → 岳阳</div></div>
+          <div class="pager-actions">
+            <button class="pager-button" type="button" id="prevDay" aria-label="上一天"><i data-lucide="chevron-left"></i></button>
+            <button class="pager-button" type="button" id="nextDay" aria-label="下一天"><i data-lucide="chevron-right"></i></button>
+          </div>
+        </div>
+        <div class="slider" id="daySlider"><section class="slide" aria-label="D1 合肥 → 岳阳">
+  <div class="day-card">
+    <div class="day-top">
+      <div class="day-num">D1</div>
+      <div class="day-title">合肥 → 岳阳</div>
+      <div class="day-date">645.8km · 8h58m · ¥323</div>
+    </div>
+    <div class="items"><div class="item">
+  <span class="item-icon"><i data-lucide="car"></i></span>
+  <div class="item-body">
+    <div class="item-label">驾车 · 估算</div>
+    <div class="item-text">合肥 → 岳阳</div>
+  </div>
+  <div class="item-right">645.8km · 8h58m<br>¥323</div>
+</div></div>
+    <div class="day-foot">
+      <div class="stat"><div class="stat-num">645.8</div><div class="stat-lbl">公里</div></div>
+      <div class="stat"><div class="stat-num">8h58m</div><div class="stat-lbl">驾车</div></div>
+      <div class="stat"><div class="stat-num">¥323</div><div class="stat-lbl">过路费</div></div>
+    </div>
+  </div>
+</section><section class="slide" aria-label="D2 岳阳 → 韶山">
+  <div class="day-card">
+    <div class="day-top">
+      <div class="day-num">D2</div>
+      <div class="day-title">岳阳 → 韶山</div>
+      <div class="day-date">230.6km · 3h12m · ¥115</div>
+    </div>
+    <div class="items"><div class="item">
+  <span class="item-icon"><i data-lucide="car"></i></span>
+  <div class="item-body">
+    <div class="item-label">驾车 · 估算</div>
+    <div class="item-text">岳阳 → 韶山</div>
+  </div>
+  <div class="item-right">230.6km · 3h12m<br>¥115</div>
+</div></div>
+    <div class="day-foot">
+      <div class="stat"><div class="stat-num">230.6</div><div class="stat-lbl">公里</div></div>
+      <div class="stat"><div class="stat-num">3h12m</div><div class="stat-lbl">驾车</div></div>
+      <div class="stat"><div class="stat-num">¥115</div><div class="stat-lbl">过路费</div></div>
+    </div>
+  </div>
+</section><section class="slide" aria-label="D3 韶山 → 凤凰古城">
+  <div class="day-card">
+    <div class="day-top">
+      <div class="day-num">D3</div>
+      <div class="day-title">韶山 → 凤凰古城</div>
+      <div class="day-date">388.2km · 5h24m · ¥194</div>
+    </div>
+    <div class="items"><div class="item">
+  <span class="item-icon"><i data-lucide="car"></i></span>
+  <div class="item-body">
+    <div class="item-label">驾车 · 估算</div>
+    <div class="item-text">韶山 → 凤凰古城</div>
+  </div>
+  <div class="item-right">388.2km · 5h24m<br>¥194</div>
+</div></div>
+    <div class="day-foot">
+      <div class="stat"><div class="stat-num">388.2</div><div class="stat-lbl">公里</div></div>
+      <div class="stat"><div class="stat-num">5h24m</div><div class="stat-lbl">驾车</div></div>
+      <div class="stat"><div class="stat-num">¥194</div><div class="stat-lbl">过路费</div></div>
+    </div>
+  </div>
+</section><section class="slide" aria-label="D4 凤凰古城 → 荔波">
+  <div class="day-card">
+    <div class="day-top">
+      <div class="day-num">D4</div>
+      <div class="day-title">凤凰古城 → 荔波</div>
+      <div class="day-date">444.8km · 6h11m · ¥222</div>
+    </div>
+    <div class="items"><div class="item">
+  <span class="item-icon"><i data-lucide="car"></i></span>
+  <div class="item-body">
+    <div class="item-label">驾车 · 估算</div>
+    <div class="item-text">凤凰古城 → 荔波</div>
+  </div>
+  <div class="item-right">444.8km · 6h11m<br>¥222</div>
+</div></div>
+    <div class="day-foot">
+      <div class="stat"><div class="stat-num">444.8</div><div class="stat-lbl">公里</div></div>
+      <div class="stat"><div class="stat-num">6h11m</div><div class="stat-lbl">驾车</div></div>
+      <div class="stat"><div class="stat-num">¥222</div><div class="stat-lbl">过路费</div></div>
+    </div>
+  </div>
+</section><section class="slide" aria-label="D5 荔波 → 小七孔 → 中国天眼 → 安顺">
+  <div class="day-card">
+    <div class="day-top">
+      <div class="day-num">D5</div>
+      <div class="day-title">荔波 → 小七孔 → 中国天眼 → 安顺</div>
+      <div class="day-date">315.4km · 4h23m · ¥157</div>
+    </div>
+    <div class="items"><div class="item">
+  <span class="item-icon"><i data-lucide="car"></i></span>
+  <div class="item-body">
+    <div class="item-label">驾车 · 估算</div>
+    <div class="item-text">荔波 → 小七孔</div>
+  </div>
+  <div class="item-right">32.4km · 27m<br>¥16</div>
+</div><div class="item">
+  <span class="item-icon"><i data-lucide="car"></i></span>
+  <div class="item-body">
+    <div class="item-label">驾车 · 估算</div>
+    <div class="item-text">小七孔 → 中国天眼</div>
+  </div>
+  <div class="item-right">130.8km · 1h49m<br>¥65</div>
+</div><div class="item">
+  <span class="item-icon"><i data-lucide="car"></i></span>
+  <div class="item-body">
+    <div class="item-label">驾车 · 估算</div>
+    <div class="item-text">中国天眼 → 安顺</div>
+  </div>
+  <div class="item-right">152.2km · 2h7m<br>¥76</div>
+</div></div>
+    <div class="day-foot">
+      <div class="stat"><div class="stat-num">315.4</div><div class="stat-lbl">公里</div></div>
+      <div class="stat"><div class="stat-num">4h23m</div><div class="stat-lbl">驾车</div></div>
+      <div class="stat"><div class="stat-num">¥157</div><div class="stat-lbl">过路费</div></div>
+    </div>
+  </div>
+</section><section class="slide" aria-label="D6 安顺 → 黄果树 → 贵阳">
+  <div class="day-card">
+    <div class="day-top">
+      <div class="day-num">D6</div>
+      <div class="day-title">安顺 → 黄果树 → 贵阳</div>
+      <div class="day-date">217.2km · 3h1m · ¥108</div>
+    </div>
+    <div class="items"><div class="item">
+  <span class="item-icon"><i data-lucide="car"></i></span>
+  <div class="item-body">
+    <div class="item-label">驾车 · 估算</div>
+    <div class="item-text">安顺 → 黄果树</div>
+  </div>
+  <div class="item-right">54.5km · 45m<br>¥27</div>
+</div><div class="item">
+  <span class="item-icon"><i data-lucide="car"></i></span>
+  <div class="item-body">
+    <div class="item-label">驾车 · 估算</div>
+    <div class="item-text">黄果树 → 贵阳</div>
+  </div>
+  <div class="item-right">162.7km · 2h16m<br>¥81</div>
+</div></div>
+    <div class="day-foot">
+      <div class="stat"><div class="stat-num">217.2</div><div class="stat-lbl">公里</div></div>
+      <div class="stat"><div class="stat-num">3h1m</div><div class="stat-lbl">驾车</div></div>
+      <div class="stat"><div class="stat-num">¥108</div><div class="stat-lbl">过路费</div></div>
+    </div>
+  </div>
+</section><section class="slide" aria-label="D7 贵阳市区">
+  <div class="day-card">
+    <div class="day-top">
+      <div class="day-num">D7</div>
+      <div class="day-title">贵阳市区</div>
+      <div class="day-date">0.0km · 0m · ¥0</div>
+    </div>
+    <div class="items"><div class="item">
+  <span class="item-icon"><i data-lucide="map-pin"></i></span>
+  <div class="item-body">
+    <div class="item-label">市区停留</div>
+    <div class="item-text">贵阳市区</div>
+  </div>
+  <div class="item-right">不计入<br>城际驾车</div>
+</div></div>
+    <div class="day-foot">
+      <div class="stat"><div class="stat-num">0.0</div><div class="stat-lbl">公里</div></div>
+      <div class="stat"><div class="stat-num">0m</div><div class="stat-lbl">驾车</div></div>
+      <div class="stat"><div class="stat-num">¥0</div><div class="stat-lbl">过路费</div></div>
+    </div>
+  </div>
+</section><section class="slide" aria-label="D8 贵阳 → 茅台镇红军桥 → 遵义会议遗址 → 重庆">
+  <div class="day-card">
+    <div class="day-top">
+      <div class="day-num">D8</div>
+      <div class="day-title">贵阳 → 茅台镇红军桥 → 遵义会议遗址 → 重庆</div>
+      <div class="day-date">300.0km · 4h9m · ¥150</div>
+    </div>
+    <div class="items"><div class="item">
+  <span class="item-icon"><i data-lucide="car"></i></span>
+  <div class="item-body">
+    <div class="item-label">驾车 · 估算</div>
+    <div class="item-text">贵阳 → 茅台镇红军桥</div>
+  </div>
+  <div class="item-right">100.0km · 1h23m<br>¥50</div>
+</div><div class="item">
+  <span class="item-icon"><i data-lucide="car"></i></span>
+  <div class="item-body">
+    <div class="item-label">驾车 · 估算</div>
+    <div class="item-text">茅台镇红军桥 → 遵义会议遗址</div>
+  </div>
+  <div class="item-right">100.0km · 1h23m<br>¥50</div>
+</div><div class="item">
+  <span class="item-icon"><i data-lucide="car"></i></span>
+  <div class="item-body">
+    <div class="item-label">驾车 · 估算</div>
+    <div class="item-text">遵义会议遗址 → 重庆</div>
+  </div>
+  <div class="item-right">100.0km · 1h23m<br>¥50</div>
+</div></div>
+    <div class="day-foot">
+      <div class="stat"><div class="stat-num">300.0</div><div class="stat-lbl">公里</div></div>
+      <div class="stat"><div class="stat-num">4h9m</div><div class="stat-lbl">驾车</div></div>
+      <div class="stat"><div class="stat-num">¥150</div><div class="stat-lbl">过路费</div></div>
+    </div>
+  </div>
+</section><section class="slide" aria-label="D9 重庆市区">
+  <div class="day-card">
+    <div class="day-top">
+      <div class="day-num">D9</div>
+      <div class="day-title">重庆市区</div>
+      <div class="day-date">0.0km · 0m · ¥0</div>
+    </div>
+    <div class="items"><div class="item">
+  <span class="item-icon"><i data-lucide="map-pin"></i></span>
+  <div class="item-body">
+    <div class="item-label">市区停留</div>
+    <div class="item-text">重庆市区</div>
+  </div>
+  <div class="item-right">不计入<br>城际驾车</div>
+</div></div>
+    <div class="day-foot">
+      <div class="stat"><div class="stat-num">0.0</div><div class="stat-lbl">公里</div></div>
+      <div class="stat"><div class="stat-num">0m</div><div class="stat-lbl">驾车</div></div>
+      <div class="stat"><div class="stat-num">¥0</div><div class="stat-lbl">过路费</div></div>
+    </div>
+  </div>
+</section><section class="slide" aria-label="D10 重庆 → 合肥">
+  <div class="day-card">
+    <div class="day-top">
+      <div class="day-num">D10</div>
+      <div class="day-title">重庆 → 合肥</div>
+      <div class="day-date">100.0km · 1h23m · ¥50</div>
+    </div>
+    <div class="items"><div class="item">
+  <span class="item-icon"><i data-lucide="car"></i></span>
+  <div class="item-body">
+    <div class="item-label">驾车 · 估算</div>
+    <div class="item-text">重庆 → 合肥</div>
+  </div>
+  <div class="item-right">100.0km · 1h23m<br>¥50</div>
+</div></div>
+    <div class="day-foot">
+      <div class="stat"><div class="stat-num">100.0</div><div class="stat-lbl">公里</div></div>
+      <div class="stat"><div class="stat-num">1h23m</div><div class="stat-lbl">驾车</div></div>
+      <div class="stat"><div class="stat-num">¥50</div><div class="stat-lbl">过路费</div></div>
+    </div>
+  </div>
+</section></div>
+        <div class="pager-dots" id="pagerDots"><button class="pager-dot" type="button" data-slide="0" aria-label="切换到 D1"></button><button class="pager-dot" type="button" data-slide="1" aria-label="切换到 D2"></button><button class="pager-dot" type="button" data-slide="2" aria-label="切换到 D3"></button><button class="pager-dot" type="button" data-slide="3" aria-label="切换到 D4"></button><button class="pager-dot" type="button" data-slide="4" aria-label="切换到 D5"></button><button class="pager-dot" type="button" data-slide="5" aria-label="切换到 D6"></button><button class="pager-dot" type="button" data-slide="6" aria-label="切换到 D7"></button><button class="pager-dot" type="button" data-slide="7" aria-label="切换到 D8"></button><button class="pager-dot" type="button" data-slide="8" aria-label="切换到 D9"></button><button class="pager-dot" type="button" data-slide="9" aria-label="切换到 D10"></button></div>
+      </div>
+    </section>
+  </main>
+</div>
+<script>
+const dayTitles = ["合肥 → 岳阳", "岳阳 → 韶山", "韶山 → 凤凰古城", "凤凰古城 → 荔波", "荔波 → 小七孔 → 中国天眼 → 安顺", "安顺 → 黄果树 → 贵阳", "贵阳市区", "贵阳 → 茅台镇红军桥 → 遵义会议遗址 → 重庆", "重庆市区", "重庆 → 合肥"];
+const daySlider = document.getElementById('daySlider');
+const pagerIndex = document.getElementById('pagerIndex');
+const pagerTitle = document.getElementById('pagerTitle');
+const pagerDots = Array.from(document.querySelectorAll('.pager-dot'));
+let currentDay = 0;
+
+function setCurrentDay(index, shouldScroll = true) {
+  const total = dayTitles.length;
+  currentDay = Math.max(0, Math.min(index, total - 1));
+  pagerIndex.textContent = String(currentDay + 1);
+  pagerTitle.textContent = dayTitles[currentDay];
+  pagerDots.forEach((dot, dotIndex) => dot.classList.toggle('active', dotIndex === currentDay));
+  if (shouldScroll && daySlider) {
+    daySlider.scrollTo({ left: currentDay * daySlider.clientWidth, behavior: 'smooth' });
+  }
+}
+
+document.querySelectorAll('.tab').forEach((tab) => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach((item) => item.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach((panel) => panel.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+    if (window.lucide) window.lucide.createIcons();
+  });
+});
+document.getElementById('prevDay').addEventListener('click', () => setCurrentDay(currentDay - 1));
+document.getElementById('nextDay').addEventListener('click', () => setCurrentDay(currentDay + 1));
+pagerDots.forEach((dot) => dot.addEventListener('click', () => setCurrentDay(Number(dot.dataset.slide))));
+daySlider.addEventListener('scroll', () => {
+  window.clearTimeout(daySlider._snapTimer);
+  daySlider._snapTimer = window.setTimeout(() => {
+    setCurrentDay(Math.round(daySlider.scrollLeft / daySlider.clientWidth), false);
+  }, 80);
+});
+window.addEventListener('resize', () => setCurrentDay(currentDay, true));
+setCurrentDay(0, false);
+if (window.lucide) window.lucide.createIcons();
+</script>
+</body>
+</html>

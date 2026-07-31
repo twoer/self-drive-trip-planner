@@ -7,6 +7,12 @@ Codex skill for turning compact Chinese self-drive itinerary text into:
 - route map image from Gaode/Amap when an API key is available
 - clearly marked estimated fallback output when no map API key is available
 
+## Live Demo
+
+[Open the generated static demo](https://twoer.github.io/self-drive-trip-planner/)
+
+The demo is generated from `examples/simple-trip.txt` with `--no-api`, so route metrics are estimated and clearly marked as fallback data.
+
 ## Install
 
 Copy this folder into a Codex skills directory, for example:

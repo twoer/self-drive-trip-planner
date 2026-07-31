@@ -1,0 +1,424 @@
+{
+  "days": [
+    {
+      "day": "D1",
+      "legs": [
+        {
+          "from": "合肥",
+          "to": "岳阳",
+          "distance_km": 645.8,
+          "duration_min": 538,
+          "toll_cny": 323,
+          "polyline": [
+            [
+              117.2272,
+              31.8206
+            ],
+            [
+              113.1289,
+              29.3571
+            ]
+          ],
+          "source": "estimated",
+          "estimated": true,
+          "origin": {
+            "lng": 117.2272,
+            "lat": 31.8206
+          },
+          "destination": {
+            "lng": 113.1289,
+            "lat": 29.3571
+          }
+        }
+      ],
+      "notes": [],
+      "title": "合肥 → 岳阳",
+      "distance_km": 645.8,
+      "duration_min": 538,
+      "toll_cny": 323.0,
+      "estimated": true
+    },
+    {
+      "day": "D2",
+      "legs": [
+        {
+          "from": "岳阳",
+          "to": "韶山",
+          "distance_km": 230.6,
+          "duration_min": 192,
+          "toll_cny": 115,
+          "polyline": [
+            [
+              113.1289,
+              29.3571
+            ],
+            [
+              112.5253,
+              27.915
+            ]
+          ],
+          "source": "estimated",
+          "estimated": true,
+          "origin": {
+            "lng": 113.1289,
+            "lat": 29.3571
+          },
+          "destination": {
+            "lng": 112.5253,
+            "lat": 27.915
+          }
+        }
+      ],
+      "notes": [],
+      "title": "岳阳 → 韶山",
+      "distance_km": 230.6,
+      "duration_min": 192,
+      "toll_cny": 115.0,
+      "estimated": true
+    },
+    {
+      "day": "D3",
+      "legs": [
+        {
+          "from": "韶山",
+          "to": "凤凰古城",
+          "distance_km": 388.2,
+          "duration_min": 324,
+          "toll_cny": 194,
+          "polyline": [
+            [
+              112.5253,
+              27.915
+            ],
+            [
+              109.5983,
+              27.948
+            ]
+          ],
+          "source": "estimated",
+          "estimated": true,
+          "origin": {
+            "lng": 112.5253,
+            "lat": 27.915
+          },
+          "destination": {
+            "lng": 109.5983,
+            "lat": 27.948
+          }
+        }
+      ],
+      "notes": [],
+      "title": "韶山 → 凤凰古城",
+      "distance_km": 388.2,
+      "duration_min": 324,
+      "toll_cny": 194.0,
+      "estimated": true
+    },
+    {
+      "day": "D4",
+      "legs": [
+        {
+          "from": "凤凰古城",
+          "to": "荔波",
+          "distance_km": 444.8,
+          "duration_min": 371,
+          "toll_cny": 222,
+          "polyline": [
+            [
+              109.5983,
+              27.948
+            ],
+            [
+              107.886,
+              25.4102
+            ]
+          ],
+          "source": "estimated",
+          "estimated": true,
+          "origin": {
+            "lng": 109.5983,
+            "lat": 27.948
+          },
+          "destination": {
+            "lng": 107.886,
+            "lat": 25.4102
+          }
+        }
+      ],
+      "notes": [],
+      "title": "凤凰古城 → 荔波",
+      "distance_km": 444.8,
+      "duration_min": 371,
+      "toll_cny": 222.0,
+      "estimated": true
+    },
+    {
+      "day": "D5",
+      "legs": [
+        {
+          "from": "荔波",
+          "to": "小七孔",
+          "distance_km": 32.4,
+          "duration_min": 27,
+          "toll_cny": 16,
+          "polyline": [
+            [
+              107.886,
+              25.4102
+            ],
+            [
+              107.717,
+              25.258
+            ]
+          ],
+          "source": "estimated",
+          "estimated": true,
+          "origin": {
+            "lng": 107.886,
+            "lat": 25.4102
+          },
+          "destination": {
+            "lng": 107.717,
+            "lat": 25.258
+          }
+        },
+        {
+          "from": "小七孔",
+          "to": "中国天眼",
+          "distance_km": 130.8,
+          "duration_min": 109,
+          "toll_cny": 65,
+          "polyline": [
+            [
+              107.717,
+              25.258
+            ],
+            [
+              106.8567,
+              25.6529
+            ]
+          ],
+          "source": "estimated",
+          "estimated": true,
+          "origin": {
+            "lng": 107.717,
+            "lat": 25.258
+          },
+          "destination": {
+            "lng": 106.8567,
+            "lat": 25.6529
+          }
+        },
+        {
+          "from": "中国天眼",
+          "to": "安顺",
+          "distance_km": 152.2,
+          "duration_min": 127,
+          "toll_cny": 76,
+          "polyline": [
+            [
+              106.8567,
+              25.6529
+            ],
+            [
+              105.9476,
+              26.2531
+            ]
+          ],
+          "source": "estimated",
+          "estimated": true,
+          "origin": {
+            "lng": 106.8567,
+            "lat": 25.6529
+          },
+          "destination": {
+            "lng": 105.9476,
+            "lat": 26.2531
+          }
+        }
+      ],
+      "notes": [],
+      "title": "荔波 → 小七孔 → 中国天眼 → 安顺",
+      "distance_km": 315.4,
+      "duration_min": 263,
+      "toll_cny": 157.0,
+      "estimated": true
+    },
+    {
+      "day": "D6",
+      "legs": [
+        {
+          "from": "安顺",
+          "to": "黄果树",
+          "distance_km": 54.5,
+          "duration_min": 45,
+          "toll_cny": 27,
+          "polyline": [
+            [
+              105.9476,
+              26.2531
+            ],
+            [
+              105.6692,
+              25.99
+            ]
+          ],
+          "source": "estimated",
+          "estimated": true,
+          "origin": {
+            "lng": 105.9476,
+            "lat": 26.2531
+          },
+          "destination": {
+            "lng": 105.6692,
+            "lat": 25.99
+          }
+        },
+        {
+          "from": "黄果树",
+          "to": "贵阳",
+          "distance_km": 162.7,
+          "duration_min": 136,
+          "toll_cny": 81,
+          "polyline": [
+            [
+              105.6692,
+              25.99
+            ],
+            [
+              106.6302,
+              26.6477
+            ]
+          ],
+          "source": "estimated",
+          "estimated": true,
+          "origin": {
+            "lng": 105.6692,
+            "lat": 25.99
+          },
+          "destination": {
+            "lng": 106.6302,
+            "lat": 26.6477
+          }
+        }
+      ],
+      "notes": [],
+      "title": "安顺 → 黄果树 → 贵阳",
+      "distance_km": 217.2,
+      "duration_min": 181,
+      "toll_cny": 108.0,
+      "estimated": true
+    },
+    {
+      "day": "D7",
+      "legs": [],
+      "notes": [
+        "贵阳市区"
+      ],
+      "title": "贵阳市区",
+      "distance_km": 0.0,
+      "duration_min": 0,
+      "toll_cny": 0,
+      "estimated": false
+    },
+    {
+      "day": "D8",
+      "legs": [
+        {
+          "from": "贵阳",
+          "to": "茅台镇红军桥",
+          "distance_km": 100.0,
+          "duration_min": 83,
+          "toll_cny": 50,
+          "polyline": [],
+          "source": "estimated",
+          "estimated": true,
+          "origin": {
+            "lng": 106.6302,
+            "lat": 26.6477
+          },
+          "destination": null
+        },
+        {
+          "from": "茅台镇红军桥",
+          "to": "遵义会议遗址",
+          "distance_km": 100.0,
+          "duration_min": 83,
+          "toll_cny": 50,
+          "polyline": [],
+          "source": "estimated",
+          "estimated": true,
+          "origin": null,
+          "destination": null
+        },
+        {
+          "from": "遵义会议遗址",
+          "to": "重庆",
+          "distance_km": 100.0,
+          "duration_min": 83,
+          "toll_cny": 50,
+          "polyline": [],
+          "source": "estimated",
+          "estimated": true,
+          "origin": null,
+          "destination": null
+        }
+      ],
+      "notes": [],
+      "title": "贵阳 → 茅台镇红军桥 → 遵义会议遗址 → 重庆",
+      "distance_km": 300.0,
+      "duration_min": 249,
+      "toll_cny": 150.0,
+      "estimated": true
+    },
+    {
+      "day": "D9",
+      "legs": [],
+      "notes": [
+        "重庆市区"
+      ],
+      "title": "重庆市区",
+      "distance_km": 0.0,
+      "duration_min": 0,
+      "toll_cny": 0,
+      "estimated": false
+    },
+    {
+      "day": "D10",
+      "legs": [
+        {
+          "from": "重庆",
+          "to": "合肥",
+          "distance_km": 100.0,
+          "duration_min": 83,
+          "toll_cny": 50,
+          "polyline": [],
+          "source": "estimated",
+          "estimated": true,
+          "origin": null,
+          "destination": {
+            "lng": 117.2272,
+            "lat": 31.8206
+          }
+        }
+      ],
+      "notes": [],
+      "title": "重庆 → 合肥",
+      "distance_km": 100.0,
+      "duration_min": 83,
+      "toll_cny": 50.0,
+      "estimated": true
+    }
+  ],
+  "totals": {
+    "distance_km": 2642.0,
+    "duration_min": 2201,
+    "toll_cny": 1319.0
+  },
+  "title": "Self-Drive Trip Planner Demo",
+  "map": {
+    "file": "route-map.svg",
+    "source": "fallback-svg",
+    "fallback": true
+  }
+}
