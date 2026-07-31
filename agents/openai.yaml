@@ -1,0 +1,4 @@
+interface:
+  display_name: "Self-Drive Trip Planner"
+  short_description: "自驾路线数据采集、行程 HTML 与路线图生成器"
+  default_prompt: "Use $self-drive-trip-planner to turn my D1/D2 self-drive itinerary into distance, duration, toll, HTML, and a route map."
