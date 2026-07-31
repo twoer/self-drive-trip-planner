@@ -68,7 +68,7 @@ make install-skill
 
 下载最新插件包：
 
-[self-drive-trip-planner-plugin.zip](https://github.com/twoer/self-drive-trip-planner/releases/download/v0.3.1/self-drive-trip-planner-plugin.zip)
+[self-drive-trip-planner-plugin.zip](https://github.com/twoer/self-drive-trip-planner/releases/download/v0.3.2/self-drive-trip-planner-plugin.zip)
 
 完整安装说明见 [INSTALL.md](INSTALL.md)。
 
