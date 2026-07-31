@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import re
 import subprocess
 import sys
@@ -393,24 +394,37 @@ def _full_page_html(data: dict[str, Any]) -> str:
 </body></html>"""
 
 
-def _playwright_available() -> bool:
-    """True if Playwright can be imported in any discoverable Python.
+def _find_playwright_python() -> str | None:
+    """Return the path of a Python interpreter that can import Playwright.
 
-    We prefer the same interpreter that runs this module, but Playwright may
-    live in the system Python (e.g. 3.9) while route_trip runs on 3.13. The
-    screenshot subprocess reports which interpreter to use via stdout.
+    We probe the current interpreter first (the one running route_trip, where
+    users most likely installed Playwright per the README), then fall back to
+    common system Pythons. Returning the actual path — not just a boolean —
+    ensures the screenshot subprocess uses the SAME interpreter that was
+    probed, avoiding mismatches (e.g. Playwright on 3.13 but /usr/bin/python3
+    is 3.9 without it).
+
+    Setting env var SDTP_NO_PLAYWRIGHT=1 forces a None return, which lets tests
+    exercise the SVG fallback path on machines that DO have Playwright.
     """
-    for py in (sys.executable, "/usr/bin/python3", "python3"):
+    if os.environ.get("SDTP_NO_PLAYWRIGHT") == "1":
+        return None
+    candidates = [sys.executable, sys.executable.replace("python3", "python"), "/usr/bin/python3", "python3"]
+    seen: set[str] = set()
+    for py in candidates:
+        if py in seen:
+            continue
+        seen.add(py)
         try:
             result = subprocess.run(
                 [py, "-c", "import playwright; print(playwright.__file__)"],
                 capture_output=True, text=True, timeout=5,
             )
             if result.returncode == 0 and result.stdout.strip():
-                return True
+                return py
         except Exception:
             continue
-    return False
+    return None
 
 
 def render_route_png(data: dict[str, Any], out_path: Path, width: int = 1600, height: int = 1000) -> bool:
@@ -421,7 +435,8 @@ def render_route_png(data: dict[str, Any], out_path: Path, width: int = 1600, he
     Returns ``False`` (no exception) when Playwright is unavailable — callers
     treat PNG as optional.
     """
-    if not _playwright_available():
+    py_exe = _find_playwright_python()
+    if not py_exe:
         return False
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -458,7 +473,7 @@ print("OK")
 """
         try:
             result = subprocess.run(
-                ["/usr/bin/python3", "-c", script],
+                [py_exe, "-c", script],
                 capture_output=True, text=True, timeout=90,
             )
         except Exception:

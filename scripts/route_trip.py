@@ -1486,10 +1486,13 @@ if (window.lucide) window.lucide.createIcons();
 
 def write_outputs(data: dict[str, Any], out_dir: Path, key: str | None) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
-    # Write data JSON first (fast) so it lands even if PNG generation is slow/fails.
-    (out_dir / "trip-data.json").write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-    # PNG generation is optional (needs Playwright); may return None.
+    # IMPORTANT: generate the map FIRST. generate_route_map() mutates
+    # data["map"] (file/source/fallback), and that metadata must be present
+    # when we serialize trip-data.json below so downstream consumers know
+    # which map file exists and whether it is a fallback. May return None
+    # when no static map could be produced (e.g. Playwright unavailable).
     map_file = generate_route_map(data, out_dir, key)
+    (out_dir / "trip-data.json").write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
     generate_html(data, out_dir / "trip.html", map_file)
 
 

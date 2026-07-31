@@ -96,11 +96,15 @@ D3
             self.assertIn("Wrote:", result.stdout)
             self.assertTrue((output_dir / "trip.html").is_file())
             self.assertTrue((output_dir / "trip-data.json").is_file())
-            self.assertTrue((output_dir / "route-map.svg").is_file())
 
+            # The static map is PNG when Playwright is available, otherwise SVG.
             data = json.loads((output_dir / "trip-data.json").read_text(encoding="utf-8"))
+            map_file = data["map"]["file"]
+            self.assertTrue((output_dir / map_file).is_file(), f"{map_file} should exist")
+            self.assertIn(data["map"]["source"],
+                          ("leaflet-playwright-screenshot", "fallback-svg"))
+
             self.assertEqual(len(data["days"]), 10)
-            self.assertEqual(data["map"]["source"], "fallback-svg")
             self.assertEqual(data["days"][6]["title"], "贵阳市区")
             self.assertEqual(data["days"][8]["title"], "重庆市区")
 
@@ -109,6 +113,22 @@ D3
             chongqing_to_hefei = next(leg for leg in legs if leg["from"] == "重庆" and leg["to"] == "合肥")
             self.assertGreater(chongqing_to_hefei["distance_km"], 1000)
             self.assertNotIn(100.0, [leg["distance_km"] for leg in legs])
+
+    def test_fallback_svg_when_playwright_unavailable(self):
+        """When Playwright is unavailable, a route-map.svg fallback is produced."""
+        import os
+        with tempfile.TemporaryDirectory() as tmp:
+            output_dir = Path(tmp) / "trip-output"
+            env = {**os.environ, "SDTP_NO_PLAYWRIGHT": "1"}
+            subprocess.run(
+                [sys.executable, str(SCRIPT), str(ROOT / "examples" / "simple-trip.txt"),
+                 "--out", str(output_dir), "--title", "Demo", "--no-api"],
+                check=True, text=True, capture_output=True, env=env,
+            )
+            data = json.loads((output_dir / "trip-data.json").read_text(encoding="utf-8"))
+            self.assertTrue((output_dir / "route-map.svg").is_file())
+            self.assertEqual(data["map"]["source"], "fallback-svg")
+            self.assertTrue(data["map"]["fallback"])
 
 
 if __name__ == "__main__":
