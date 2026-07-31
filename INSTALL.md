@@ -49,6 +49,16 @@ Append a `费用预算：` section to the itinerary:
 小七孔成人票 120 元，中国天眼成人票 140 元。
 ```
 
+Component-style scenic-area fees are supported:
+
+```text
+景点门票：天眼景区门票不要钱，摆渡车 50 元一人，保险 10 元一人。
+```
+
+When using Codex, attraction names alone are enough if you ask the agent to look
+up current official/authoritative prices first. Direct CLI runs are offline and
+need prices included in the `费用预算：` section.
+
 CLI equivalent:
 
 ```bash
@@ -82,8 +92,9 @@ Budget options:
 
 Hotel nights and meal days are inferred from the itinerary unless explicitly
 overridden. Adults use full attraction ticket price, children below 1.2m are
-free, and children at or above 1.2m use half adult price. The estimate includes
-route tolls from the route data when available.
+free, and children at or above 1.2m use half adult price. Per-person components
+such as shuttle bus or insurance are multiplied by all travelers. The estimate
+includes route tolls from the route data when available.
 
 ## PDF Export
 

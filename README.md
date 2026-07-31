@@ -54,7 +54,7 @@ Then ask Codex to use `$self-drive-trip-planner` with an itinerary.
 
 Download the latest packaged plugin from GitHub Releases:
 
-[self-drive-trip-planner-plugin.zip](https://github.com/twoer/self-drive-trip-planner/releases/download/v0.3.0/self-drive-trip-planner-plugin.zip)
+[self-drive-trip-planner-plugin.zip](https://github.com/twoer/self-drive-trip-planner/releases/download/v0.3.1/self-drive-trip-planner-plugin.zip)
 
 For a step-by-step setup guide, see [INSTALL.md](INSTALL.md).
 
@@ -126,6 +126,16 @@ Run with a rough budget estimate. Append a `费用预算：` section to the itin
 小七孔成人票 120 元，中国天眼成人票 140 元。
 ```
 
+It also supports per-scenic-area fee components:
+
+```text
+景点门票：天眼景区门票不要钱，摆渡车 50 元一人，保险 10 元一人。
+```
+
+When using Codex, you can provide attraction names and ask the agent to look up
+current official/authoritative prices before running the generator. Direct CLI
+runs are offline and need the prices included in `费用预算：`.
+
 CLI equivalent:
 
 ```bash
@@ -146,6 +156,8 @@ python3 scripts/route_trip.py examples/simple-trip.txt \
 Hotel nights default to trip days minus one; meal days default to the trip day count.
 For attraction tickets, adults use full price, children below 1.2m are free, and
 children at or above 1.2m use half adult price.
+For components such as shuttle bus or insurance marked as `一人`/`每人`, the
+calculator multiplies the fee by all travelers.
 If no budget inputs are provided, the generated `费用` tab shows an activation
 reminder instead of pretending to calculate a total trip budget.
 

@@ -125,6 +125,7 @@ D3
             self.assertIn("费用计算未启用", html)
             self.assertIn("你可以这样说", html)
             self.assertIn("电价 1.5 元/度", html)
+            self.assertIn("摆渡车 50 元一人", html)
             self.assertNotIn("示例：--vehicle-type", html)
             self.assertIn("data-tab=\"budget\"", html)
             self.assertFalse(data["budget"]["configured"])
@@ -256,6 +257,28 @@ D3
         self.assertEqual(parsed["passengers"]["adults"], 2)
         self.assertEqual(parsed["passengers"]["children_under_1_2m"], 1)
         self.assertEqual(parsed["hotel_nightly"], 300.0)
+
+    def test_attraction_components_support_free_ticket_and_per_person_fees(self):
+        parsed = self.route_trip.parse_budget_text("""费用预算：
+两大一小（低于 1.2m）。
+景点门票：天眼景区门票不要钱，摆渡车 50 元一人，保险 10 元一人。
+""")
+        data = {
+            "days": [{"day": "D1", "legs": [], "distance_km": 0.0, "duration_min": 0, "toll_cny": 0}],
+            "totals": {"distance_km": 0.0, "duration_min": 0, "toll_cny": 0},
+        }
+        budget = self.route_trip.build_budget(
+            data,
+            attractions=parsed["attractions"],
+            passengers=parsed["passengers"],
+        )
+
+        self.assertEqual(len(parsed["attractions"]), 1)
+        self.assertEqual(parsed["attractions"][0]["name"], "天眼景区")
+        self.assertEqual(budget["category_totals"]["attraction"], 180.0)
+        self.assertEqual(budget["items"][0]["label"], "天眼景区")
+        self.assertEqual(budget["items"][0]["detail"], "门票免费；摆渡车 3 × ¥50；保险 3 × ¥10")
+        self.assertEqual([component["amount_cny"] for component in budget["items"][0]["components"]], [0.0, 150.0, 30.0])
 
     def test_data_only_pdf_request_reports_warning(self):
         with tempfile.TemporaryDirectory() as tmp:

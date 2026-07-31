@@ -91,6 +91,12 @@ Accept a trailing natural-language `费用预算：` section. Do not treat it as
 景点门票：小七孔成人票 120 元，中国天眼成人票 140 元。
 ```
 
+Also support component-style fees:
+
+```text
+景点门票：天眼景区门票不要钱，摆渡车 50 元一人，保险 10 元一人。
+```
+
 Budget rules:
 
 - Hotel nights default to trip days minus one.
@@ -98,6 +104,8 @@ Budget rules:
 - Adult attraction tickets use full price.
 - Children below 1.2m are free by default.
 - Children at or above 1.2m use half adult price by default.
+- Per-person fee components such as shuttle bus, sightseeing bus, and insurance are multiplied by all travelers.
+- If the user provides only attraction names without prices, browse current official or authoritative pages for ticket/component prices, then add the discovered prices to the budget input. If no reliable source is found, leave the item out of the total and report it as "待核实"; do not invent prices.
 
 Read `references/data-schema.md` when changing the parser, consuming user-provided JSON, or explaining the normalized schema. Read `references/output-contract.md` when changing output files, `manifest.json`, modes, or final reporting behavior.
 

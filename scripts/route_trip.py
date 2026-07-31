@@ -495,20 +495,72 @@ def parse_first_amount(patterns: list[str], text: str) -> float | None:
     return None
 
 
+def clean_fee_name(value: str) -> str:
+    return re.sub(r"^(?:景点门票|景点费用|门票|票价|费用|费)[：:]?", "", value).strip(" ：:，,、；;。")
+
+
+def split_fee_fragments(value: str) -> list[str]:
+    return [part.strip() for part in re.split(r"[，,、；;。]\s*", value) if part.strip()]
+
+
+def parse_attraction_fee_items(line: str) -> list[dict[str, Any]]:
+    clean = re.sub(r"^(?:景点费用|景点门票|门票)\s*[:：]\s*", "", line.strip())
+    items: list[dict[str, Any]] = []
+    grouped: dict[str, dict[str, Any]] = {}
+    current_place: str | None = None
+
+    def attraction_group(name: str) -> dict[str, Any]:
+        normalized = clean_fee_name(re.sub(r"(?:成人票|门票|票价|费用|费)$", "", name))
+        if normalized not in grouped:
+            grouped[normalized] = {"name": normalized, "components": []}
+            items.append(grouped[normalized])
+        return grouped[normalized]
+
+    for fragment in split_fee_fragments(clean):
+        free_match = re.search(r"(.+?)(?:成人票|门票|票价)?\s*(?:不要钱|免费|免票|(?<![0-9.])0\s*元)", fragment)
+        if free_match:
+            current_place = clean_fee_name(re.sub(r"(?:成人票|门票|票价)$", "", free_match.group(1)))
+            group = attraction_group(current_place)
+            group["components"].append({"label": "门票", "unit_price_cny": 0.0, "charge": "free"})
+            continue
+
+        ticket_match = re.search(r"(.+?)(?:成人票|门票|票价)\s*([0-9]+(?:\.[0-9]+)?)\s*元", fragment)
+        if ticket_match:
+            current_place = clean_fee_name(ticket_match.group(1))
+            items.append({"name": current_place, "adult_price_cny": float(ticket_match.group(2))})
+            continue
+
+        per_person_match = re.search(r"(.+?)\s*([0-9]+(?:\.[0-9]+)?)\s*元\s*(?:一人|/人|每人|每位|一位|人)", fragment)
+        if per_person_match:
+            label = clean_fee_name(per_person_match.group(1))
+            price = float(per_person_match.group(2))
+            group_name = current_place or label
+            group = attraction_group(group_name)
+            group["components"].append({"label": label, "unit_price_cny": price, "charge": "per_person"})
+            continue
+
+        generic_match = re.search(r"(.+?)\s*([0-9]+(?:\.[0-9]+)?)\s*元", fragment)
+        if generic_match:
+            name = clean_fee_name(generic_match.group(1))
+            amount = float(generic_match.group(2))
+            items.append({"name": name, "adult_price_cny": amount})
+
+    return [item for item in items if item.get("name")]
+
+
 def parse_budget_fee_items(line: str, category: str) -> list[dict[str, Any]]:
     """Parse fee fragments like ``小七孔 120 元，中国天眼 140 元``."""
     clean = re.sub(r"^(?:景点费用|景点门票|门票|其他费用|其他|杂费)\s*[:：]\s*", "", line.strip())
+    if category == "attraction":
+        return parse_attraction_fee_items(line)
+
     items: list[dict[str, Any]] = []
     for match in re.finditer(r"([\u4e00-\u9fffA-Za-z0-9·（）()]+?)\s*([0-9]+(?:\.[0-9]+)?)\s*元", clean):
         name = match.group(1).strip(" ，,、；;。")
         if not name:
             continue
         amount = float(match.group(2))
-        if category == "attraction":
-            name = re.sub(r"(?:成人票|门票|票价|费用|费)$", "", name)
-            items.append({"name": name, "adult_price_cny": amount})
-        else:
-            items.append({"name": name, "amount_cny": amount})
+        items.append({"name": name, "amount_cny": amount})
     return items
 
 
@@ -582,6 +634,14 @@ def budget_item(category: str, label: str, amount: float, detail: str = "", quan
     if unit_price is not None:
         item["unit_price_cny"] = round(float(unit_price), 2)
     return item
+
+
+def total_passenger_count(passenger_counts: dict[str, int]) -> int:
+    return (
+        int(passenger_counts.get("adults", 0))
+        + int(passenger_counts.get("children_under_1_2m", 0))
+        + int(passenger_counts.get("children_over_1_2m", 0))
+    )
 
 
 def build_budget(
@@ -659,7 +719,35 @@ def build_budget(
         )
 
     for item in attractions or []:
-        if "adult_price_cny" in item:
+        if "components" in item:
+            people = total_passenger_count(passenger_counts)
+            component_total = 0.0
+            detail_parts = []
+            rendered_components = []
+            for component in item.get("components") or []:
+                label = str(component.get("label") or "费用")
+                unit_price = float(component.get("unit_price_cny") or 0)
+                charge = str(component.get("charge") or "per_person")
+                if charge == "free" or unit_price == 0:
+                    amount = 0.0
+                    detail_parts.append(f"{label}免费")
+                    quantity = 0
+                else:
+                    quantity = people
+                    amount = quantity * unit_price
+                    detail_parts.append(f"{label} {quantity} × {unit_money_label(unit_price)}")
+                component_total += amount
+                rendered_components.append({
+                    "label": label,
+                    "unit_price_cny": round(unit_price, 2),
+                    "quantity": quantity,
+                    "amount_cny": round(amount, 2),
+                    "charge": charge,
+                })
+            item_data = budget_item("attraction", item["name"], component_total, "；".join(detail_parts))
+            item_data["components"] = rendered_components
+            items.append(item_data)
+        elif "adult_price_cny" in item:
             adult_price = float(item["adult_price_cny"])
             adults = passenger_counts["adults"]
             free_children = passenger_counts["children_under_1_2m"]
@@ -1648,7 +1736,7 @@ def generate_html(data: dict[str, Any], path: Path, map_file: str | None = None)
   <div class="activate-body">
     <div class="activate-title">费用计算未启用</div>
     <div class="activate-text">运行时加入电费、住宿、餐饮或景点费用参数后，这里会生成总预算和分项明细。</div>
-    <div class="activate-example">你可以这样说：我们是两大一小（低于 1.2m），开电车，电价 1.5 元/度，百公里电耗 16 度；酒店每晚 300 元，餐费每天 100 元；小七孔成人票 120 元，中国天眼成人票 140 元。</div>
+    <div class="activate-example">你可以这样说：我们是两大一小（低于 1.2m），开电车，电价 1.5 元/度，百公里电耗 16 度；酒店每晚 300 元，餐费每天 100 元；天眼景区门票不要钱，摆渡车 50 元一人，保险 10 元一人。</div>
   </div>
 </div>
 <div class="budget-muted">
