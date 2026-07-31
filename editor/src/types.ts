@@ -36,4 +36,5 @@ export type EditorPayload = {
   mode: string;
   budget_text: string;
   days: TripDay[];
+  pdf?: boolean;
 };

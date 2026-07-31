@@ -4,6 +4,7 @@ import {
   CalendarDays,
   Car,
   CircleDollarSign,
+  FileDown,
   FileJson,
   Globe2,
   Loader2,
@@ -56,6 +57,7 @@ D10
 const title = ref("自驾行程");
 const startDate = ref("2026-07-17");
 const mode = ref("estimate");
+const exportPdf = ref(false);
 const rawText = ref(fallbackText);
 const budgetText = ref("");
 const days = ref<TripDay[]>([]);
@@ -144,7 +146,8 @@ async function generateOutput() {
       start_date: startDate.value,
       mode: mode.value,
       budget_text: budgetText.value,
-      days: days.value
+      days: days.value,
+      pdf: exportPdf.value
     });
     status.value = "已生成";
   } catch (err) {
@@ -354,6 +357,21 @@ onMounted(async () => {
             暂无行程卡片
           </div>
 
+          <div class="grid gap-2">
+            <div class="flex items-center justify-between gap-2">
+              <h3 class="ui-icon-text text-sm font-extrabold">
+                <CircleDollarSign class="ui-icon text-primary" aria-hidden="true" />
+                <span>费用文本</span>
+              </h3>
+              <span class="text-xs font-bold text-muted-foreground">{{ budgetText.trim() ? "已启用" : "未启用" }}</span>
+            </div>
+            <textarea
+              v-model="budgetText"
+              class="min-h-[116px] w-full resize-y rounded-lg border border-input bg-white px-3 py-2 text-sm leading-6 text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              placeholder="人数、电价、酒店、餐费、景区价格..."
+            />
+          </div>
+
           <div class="grid gap-2 rounded-lg border border-border bg-muted p-3">
             <div class="flex items-center justify-between gap-2">
               <span class="ui-icon-text text-sm font-extrabold">
@@ -362,6 +380,13 @@ onMounted(async () => {
               </span>
               <span class="text-xs font-bold text-muted-foreground">{{ result?.out_dir || "trip-output/editor" }}</span>
             </div>
+            <label class="flex w-fit cursor-pointer items-center gap-2 rounded-lg border border-border bg-white px-3 py-2 text-sm font-bold text-foreground">
+              <input v-model="exportPdf" class="size-4 shrink-0 accent-[hsl(var(--primary))]" type="checkbox" />
+              <span class="ui-icon-text">
+                <FileDown class="ui-icon text-primary" aria-hidden="true" />
+                <span>导出 PDF</span>
+              </span>
+            </label>
             <p v-if="error" class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-bold text-destructive">{{ error }}</p>
             <div v-if="result" class="ui-action-group flex-wrap">
               <a v-if="result.output_url" class="ui-button ui-button-primary" :href="result.output_url" target="_blank" rel="noopener">
