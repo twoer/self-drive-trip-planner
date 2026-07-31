@@ -11,16 +11,38 @@
     "data": "trip-data.json",
     "manifest": "manifest.json",
     "html": "index.html",
-    "map_image": "route-map.png"
+    "map_image": "route-map.png",
+    "pdf": null
   },
   "map": {
     "file": "route-map.png",
     "source": "leaflet-playwright-screenshot",
     "fallback": false
   },
+  "budget": {
+    "currency": "CNY",
+    "configured": false,
+    "total_cny": 2388.0,
+    "category_totals": {
+      "toll": 2388.0
+    },
+    "items": [
+      {
+        "category": "toll",
+        "label": "过路费",
+        "amount_cny": 2388.0,
+        "detail": "来自路线数据"
+      }
+    ],
+    "assumptions": {
+      "trip_days": 10,
+      "distance_km": 3917.4
+    },
+    "warnings": []
+  },
   "totals": {
     "distance_km": 3917.4,
-    "duration_min": 2821,
+    "duration_min": 2802,
     "toll_cny": 2388.0
   },
   "counts": {
