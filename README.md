@@ -11,7 +11,7 @@ Codex skill for turning compact Chinese self-drive itinerary text into:
 
 [Open the generated static demo](https://twoer.github.io/self-drive-trip-planner/)
 
-The demo is generated from `examples/simple-trip.txt` with `--no-api`, so route metrics are estimated and clearly marked as fallback data.
+The published demo is generated from `examples/simple-trip.txt` with Gaode/Amap API data, then committed as static HTML/JSON/image files under `docs/`. No API key is stored in this repository.
 
 ## Install
 
@@ -111,10 +111,16 @@ python3 -m py_compile scripts/route_trip.py
 python3 -m unittest discover -s tests
 ```
 
-Generate a local estimated demo:
+Generate a local estimated fallback demo:
 
 ```bash
 python3 scripts/route_trip.py examples/simple-trip.txt --out ./trip-output --title "Demo 自驾游" --no-api
+```
+
+Generate a local API-backed demo when `AMAP_KEY` or `GAODE_KEY` is configured:
+
+```bash
+python3 scripts/route_trip.py examples/simple-trip.txt --out ./trip-output --title "Demo 自驾游"
 ```
 
 Generated outputs are ignored by git.

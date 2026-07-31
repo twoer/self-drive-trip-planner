@@ -104,6 +104,12 @@ D3
             self.assertEqual(data["days"][6]["title"], "贵阳市区")
             self.assertEqual(data["days"][8]["title"], "重庆市区")
 
+            legs = [leg for day in data["days"] for leg in day["legs"]]
+            self.assertTrue(all(leg["origin"] and leg["destination"] for leg in legs))
+            chongqing_to_hefei = next(leg for leg in legs if leg["from"] == "重庆" and leg["to"] == "合肥")
+            self.assertGreater(chongqing_to_hefei["distance_km"], 1000)
+            self.assertNotIn(100.0, [leg["distance_km"] for leg in legs])
+
 
 if __name__ == "__main__":
     unittest.main()
