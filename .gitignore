@@ -15,6 +15,8 @@ trip-input-*.txt
 .coverage
 htmlcov/
 
+dist/
+
 .open-source-trash/
 
 # Local agent/tool state

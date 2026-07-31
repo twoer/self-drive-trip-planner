@@ -24,6 +24,27 @@ cp -R self-drive-trip-planner ~/.codex/skills/
 
 Then ask Codex to use `$self-drive-trip-planner` with an itinerary.
 
+## Plugin Package
+
+Build a clean skills-only Codex plugin package:
+
+```bash
+make package-plugin
+```
+
+This writes:
+
+- `dist/self-drive-trip-planner/`
+- `dist/self-drive-trip-planner-plugin.zip`
+
+The package excludes generated trip outputs, local caches, `.env`, and repository metadata. It contains only the plugin manifest plus the skill files needed to run locally.
+
+Validate the generated plugin package when the local Codex plugin validator is available:
+
+```bash
+make validate-plugin
+```
+
 ## CLI Usage
 
 Install dependencies:

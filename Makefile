@@ -2,8 +2,10 @@ PYTHON ?= python3
 OUT ?= trip-output
 TITLE ?= Demo 自驾游
 START_DATE ?= 2026-07-17
+PLUGIN_CREATOR_DIR ?= $(HOME)/.codex/skills/.system/plugin-creator
+PLUGIN_VALIDATOR ?= $(PLUGIN_CREATOR_DIR)/scripts/validate_plugin.py
 
-.PHONY: install test demo-estimate demo-api demo-data pages-demo
+.PHONY: install test demo-estimate demo-api demo-data pages-demo package-plugin validate-plugin
 
 install:
 	$(PYTHON) -m pip install -r requirements.txt
@@ -24,3 +26,9 @@ demo-data:
 pages-demo:
 	$(PYTHON) scripts/route_trip.py examples/simple-trip.txt --out docs --title "Self-Drive Trip Planner Demo" --start-date $(START_DATE) --mode publish-demo
 	touch docs/.nojekyll
+
+package-plugin:
+	$(PYTHON) scripts/package_plugin.py --out dist
+
+validate-plugin: package-plugin
+	$(PYTHON) $(PLUGIN_VALIDATOR) dist/self-drive-trip-planner
