@@ -2,13 +2,23 @@ PYTHON ?= python3
 OUT ?= trip-output
 TITLE ?= Demo 自驾游
 START_DATE ?= 2026-07-17
+CODEX_SKILLS_DIR ?= $(HOME)/.codex/skills
 PLUGIN_CREATOR_DIR ?= $(HOME)/.codex/skills/.system/plugin-creator
 PLUGIN_VALIDATOR ?= $(PLUGIN_CREATOR_DIR)/scripts/validate_plugin.py
 
-.PHONY: install test demo-estimate demo-api demo-data pages-demo package-plugin validate-plugin
+.PHONY: install setup demo install-skill test demo-estimate demo-api demo-data pages-demo package-plugin validate-plugin
 
 install:
 	$(PYTHON) -m pip install -r requirements.txt
+
+setup:
+	$(PYTHON) scripts/setup_env.py
+
+demo:
+	$(PYTHON) scripts/run_demo.py --out $(OUT) --title "$(TITLE)" --start-date $(START_DATE)
+
+install-skill:
+	$(PYTHON) scripts/install_skill.py --dest $(CODEX_SKILLS_DIR)
 
 test:
 	$(PYTHON) -m py_compile scripts/route_trip.py scripts/leaflet_map.py

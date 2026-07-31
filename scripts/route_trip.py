@@ -78,7 +78,11 @@ def parse_itinerary(text: str) -> list[dict[str, Any]]:
 
 
 def amap_key() -> str | None:
-    return os.getenv("AMAP_KEY") or os.getenv("GAODE_KEY")
+    for key_name in ("AMAP_KEY", "GAODE_KEY"):
+        value = os.getenv(key_name)
+        if value and "your-gaode" not in value:
+            return value
+    return None
 
 
 def load_dotenv(path: Path) -> None:

@@ -14,12 +14,25 @@ Codex skill for turning compact Chinese self-drive itinerary text into:
 
 The published demo is generated from `examples/simple-trip.txt` with Gaode/Amap API data, then committed as static HTML/JSON/image files under `docs/`. No API key is stored in this repository.
 
-## Install
-
-Copy this folder into a Codex skills directory, for example:
+## 30-Second Start
 
 ```bash
-cp -R self-drive-trip-planner ~/.codex/skills/
+git clone https://github.com/twoer/self-drive-trip-planner.git
+cd self-drive-trip-planner
+make install
+make setup
+make demo
+open trip-output/trip.html
+```
+
+`make demo` automatically uses Amap route data when `.env`, `AMAP_KEY`, or `GAODE_KEY` is configured. Without a key, it runs an estimated preview and records warnings in `trip-output/manifest.json`.
+
+## Install As A Codex Skill
+
+Install a clean copy into the default Codex skills directory:
+
+```bash
+make install-skill
 ```
 
 Then ask Codex to use `$self-drive-trip-planner` with an itinerary.
