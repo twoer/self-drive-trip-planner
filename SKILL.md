@@ -1,6 +1,6 @@
 ---
 name: self-drive-trip-planner
-description: Create self-driving trip outputs from structured itinerary text such as D1/D2 day blocks and "A 到 B" legs. Use when Codex needs to parse road-trip stops, enrich each point-to-point leg with driving distance, duration, tolls, generate a mobile-friendly Chinese itinerary HTML page, and create a route map image/SVG with labels for route, distance, time, and toll.
+description: Create agent-verifiable self-driving trip outputs from structured itinerary text such as D1/D2 day blocks and "A 到 B" legs. Use when Codex needs to parse road-trip stops, enrich point-to-point legs with distance, duration, tolls, generate normalized JSON, manifest.json, mobile-friendly Chinese itinerary HTML, and an interactive route map/PNG/SVG with source and warning metadata.
 ---
 
 # Self-Drive Trip Planner
@@ -11,20 +11,25 @@ description: Create self-driving trip outputs from structured itinerary text suc
 2. Enrich every leg with driving metrics:
    - Prefer a map API when credentials are available.
    - Fall back to clearly marked estimates if an API key is unavailable or a lookup fails.
-3. Generate a normalized `trip-data.json` before creating visual outputs.
-4. Generate an interactive map showing the **real driving route**:
+3. Choose a CLI mode:
+   - `--mode estimate` for quick no-key previews.
+   - `--mode accurate` when all driving legs must use Amap data.
+   - `--mode publish-demo` for GitHub Pages/static demo generation.
+   - `--mode data-only` when only JSON/manifest outputs are needed.
+4. Generate a normalized `trip-data.json` and `manifest.json`. Read `references/output-contract.md` before changing output files or explaining the manifest.
+5. Generate an interactive map showing the **real driving route**:
    - Embed a Leaflet map in `trip.html` using Amap raster tiles (no tile key needed); draw each leg's actual polyline from the routing API.
    - Color each leg by data source: blue for real API data, orange for estimates.
    - Use marker letters (`A`, `B`, `C`, ...) on the map, with start (green) and end (red) highlighted; let `fitBounds` frame the whole route.
    - Keep the map uncluttered: put daily route, duration, toll details in the HTML overview cards and an on-map legend, not as scattered callouts along the route.
    - Optionally produce `route-map.png` by screenshotting the same Leaflet page with Playwright (an optional dependency); when Playwright is missing, skip the PNG silently — the interactive HTML map still works.
    - Use the schematic SVG only as a fallback when network/polyline data are unavailable.
-5. Generate a mobile-first HTML itinerary page inspired by the user's reference style:
+6. Generate a mobile-first HTML itinerary page inspired by the user's reference style:
    - Header with trip title and route summary.
    - Tabs for daily itinerary, route overview, toll summary, and total stats.
    - Daily cards with each driving segment.
    - Lucide icons, compact cards, and Chinese labels.
-6. Embed the map-based route image in the HTML. Keep distance, duration, and toll details in the route overview and toll tabs when the static map cannot render long text labels cleanly.
+7. Embed the interactive map in the HTML. Link to `route-map.png` or `route-map.svg` when a static image exists.
 
 ## Quick Start
 
@@ -32,6 +37,12 @@ Use the bundled script for repeatable work:
 
 ```bash
 python3 scripts/route_trip.py input.txt --out ./trip-output --title "2026 暑假自驾游"
+```
+
+For agent-safe runs, prefer explicit modes:
+
+```bash
+python3 scripts/route_trip.py input.txt --out ./trip-output --title "2026 暑假自驾游" --mode accurate
 ```
 
 Set one of these environment variables before running if map enrichment is needed:
@@ -69,11 +80,11 @@ Also accept `->`, `→`, `回`, `返回`, and multi-stop lines such as `荔波 �
 
 Lines without route connectors, such as `贵阳市区`, are treated as non-driving stay notes for that day. Keep them in `trip-data.json` and the HTML, but do not include them in driving distance, duration, toll, or route-map paths.
 
-Read `references/data-schema.md` when changing the parser, consuming user-provided JSON, or explaining the normalized schema.
+Read `references/data-schema.md` when changing the parser, consuming user-provided JSON, or explaining the normalized schema. Read `references/output-contract.md` when changing output files, `manifest.json`, modes, or final reporting behavior.
 
 ## Map Service
 
-Prefer Gaode/Amap Web Service for mainland China driving routes because it can return driving distance, duration, toll, route polyline, and static map images with markers/paths. Read `references/map-services.md` before changing the map lookup behavior or adding another provider.
+Prefer Gaode/Amap Web Service for mainland China driving routes because it can return driving distance, duration, toll, and route polyline data. Render maps through the Leaflet helper; treat the old Amap static-map path as historical fallback behavior only. Read `references/map-services.md` before changing the map lookup behavior or adding another provider.
 
 Do not invent precise tolls. If a toll is estimated, mark it as estimated in JSON and in user-facing summaries.
 
@@ -95,6 +106,7 @@ Before finishing a trip output task:
 
 - Confirm every requested leg appears in `trip-data.json`.
 - Confirm each leg has distance, duration, toll, and source metadata.
-- Confirm the HTML opens without build tooling.
-- Confirm the route map file exists. Prefer `route-map.png` from a real map provider with readable custom annotations; use `route-map.svg` only as a clearly disclosed fallback.
-- State whether data came from the map API or estimates.
+- Confirm `manifest.json` exists and every non-null file in `manifest.files` exists.
+- Confirm the HTML opens without build tooling when not using `--mode data-only`.
+- Confirm the route map file exists when not using `--mode data-only`. Prefer `route-map.png`; use `route-map.svg` only as a clearly disclosed fallback.
+- State `manifest.data_source`, totals, output directory, and every warning in `manifest.warnings`.

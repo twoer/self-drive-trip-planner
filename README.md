@@ -4,8 +4,9 @@ Codex skill for turning compact Chinese self-drive itinerary text into:
 
 - normalized `trip-data.json`
 - mobile-friendly Chinese itinerary HTML
-- route map image from Gaode/Amap when an API key is available
+- interactive route map plus optional shareable PNG/SVG image
 - clearly marked estimated fallback output when no map API key is available
+- machine-readable `manifest.json` so agents can verify files, warnings, and data source
 
 ## Live Demo
 
@@ -31,20 +32,32 @@ Install dependencies:
 python3 -m pip install -r requirements.txt
 ```
 
-Run with estimated fallback data:
+Run an estimated fallback preview:
 
 ```bash
-python3 scripts/route_trip.py examples/simple-trip.txt --out ./trip-output --title "Demo 自驾游" --no-api
+python3 scripts/route_trip.py examples/simple-trip.txt --out ./trip-output --title "Demo 自驾游" --mode estimate
 ```
 
-Run with Gaode/Amap route data:
+Run with required Gaode/Amap route data:
 
 ```bash
 export AMAP_KEY="your-gaode-web-service-key"
-python3 scripts/route_trip.py examples/simple-trip.txt --out ./trip-output --title "Demo 自驾游"
+python3 scripts/route_trip.py examples/simple-trip.txt --out ./trip-output --title "Demo 自驾游" --mode accurate
 ```
 
 `GAODE_KEY` is also supported.
+
+Mode summary:
+
+- `auto`: default; use API when a key is configured, otherwise estimate.
+- `estimate`: skip API and clearly mark estimated route metrics.
+- `accurate`: require every driving leg to use complete Amap data; exits non-zero if not.
+- `publish-demo`: like `accurate`, defaults output to `docs/` for GitHub Pages.
+- `data-only`: write only `trip-data.json` and `manifest.json`.
+
+Legacy `--no-api` is still accepted as an alias for `--mode estimate`.
+
+Every run writes `manifest.json`; read it first when integrating from an agent.
 
 ### Optional: generate a shareable route-map image
 
@@ -106,18 +119,19 @@ Do not commit API keys. Use environment variables:
 
 If no key is available, the script uses coordinate-based estimates where possible and marks generated metrics with `source: "estimated"` and `estimated: true`.
 
-Route distance, duration, tolls, static maps, and base map data come from the configured map service when API mode is used. Users are responsible for following the provider's terms and verifying metrics before booking or departure.
+Route distance, duration, tolls, and route polylines come from the configured map service when API mode is used. Users are responsible for following the provider's terms and verifying metrics before booking or departure.
 
-## Static Map Markers
+## Agent Contract
 
-Whole-trip overview maps use provider-drawn markers so marker positions stay aligned with the map. Static map services limit how many markers can be shown. This skill marks at most 10 overview stops:
+This repository is shaped to be called by another agent with a low-friction contract:
 
-- start
-- end
-- daily endpoints
-- evenly distributed major stops
+- pass itinerary text to `scripts/route_trip.py`
+- choose an explicit `--mode`
+- read `manifest.json`
+- verify every non-null path in `manifest.files`
+- report `manifest.data_source`, `manifest.totals`, and `manifest.warnings`
 
-Complete stop and leg data remains in `trip-data.json` and the HTML even when some stops are omitted from the overview map.
+For GitHub Pages, `--mode publish-demo` writes `docs/index.html` plus `trip-data.json`, `manifest.json`, and a route-map asset.
 
 ## Development
 
@@ -131,13 +145,19 @@ python3 -m unittest discover -s tests
 Generate a local estimated fallback demo:
 
 ```bash
-python3 scripts/route_trip.py examples/simple-trip.txt --out ./trip-output --title "Demo 自驾游" --no-api
+make demo-estimate
 ```
 
 Generate a local API-backed demo when `AMAP_KEY` or `GAODE_KEY` is configured:
 
 ```bash
-python3 scripts/route_trip.py examples/simple-trip.txt --out ./trip-output --title "Demo 自驾游"
+make demo-api
+```
+
+Generate the GitHub Pages demo:
+
+```bash
+make pages-demo
 ```
 
 Generated outputs are ignored by git.

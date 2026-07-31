@@ -3,4 +3,3 @@ Pillow>=10.0
 # 可选:生成可分享的路线图 PNG (route-map.png)
 # trip.html 内嵌的交互式 Leaflet 地图无需这些依赖; 仅当需要独立的 PNG 图片时安装。
 # 安装: pip install playwright && python -m playwright install chromium
-playwright>=1.40  # optional, for route-map.png screenshot

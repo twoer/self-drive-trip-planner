@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "mode": "publish-demo",
+  "title": "Self-Drive Trip Planner Demo",
+  "start_date": "2026-07-17",
+  "data_source": "amap",
+  "source_counts": {
+    "amap": 13
+  },
+  "files": {
+    "data": "trip-data.json",
+    "manifest": "manifest.json",
+    "html": "index.html",
+    "map_image": "route-map.png"
+  },
+  "map": {
+    "file": "route-map.png",
+    "source": "leaflet-playwright-screenshot",
+    "fallback": false
+  },
+  "totals": {
+    "distance_km": 3917.3,
+    "duration_min": 2836,
+    "toll_cny": 2388.0
+  },
+  "counts": {
+    "days": 10,
+    "driving_days": 8,
+    "legs": 13,
+    "estimated_legs": 0
+  },
+  "warnings": []
+}

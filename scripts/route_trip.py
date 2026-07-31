@@ -81,6 +81,21 @@ def amap_key() -> str | None:
     return os.getenv("AMAP_KEY") or os.getenv("GAODE_KEY")
 
 
+def load_dotenv(path: Path) -> None:
+    """Load simple KEY=VALUE lines from .env without overriding the process env."""
+    if not path.exists():
+        return
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        if key and key not in os.environ:
+            os.environ[key] = value
+
+
 def fetch_json(url: str, params: dict[str, str]) -> dict[str, Any]:
     query = urllib.parse.urlencode(params)
     request = urllib.request.Request(f"{url}?{query}", headers={"User-Agent": "codex-self-drive-trip-planner/1.0"})
@@ -1484,26 +1499,121 @@ if (window.lucide) window.lucide.createIcons();
     path.write_text(html_text, encoding="utf-8")
 
 
-def write_outputs(data: dict[str, Any], out_dir: Path, key: str | None) -> None:
+def source_counts(data: dict[str, Any]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for day in data["days"]:
+        for leg in day["legs"]:
+            source = str(leg.get("source") or "unknown")
+            counts[source] = counts.get(source, 0) + 1
+    return counts
+
+
+def output_warnings(data: dict[str, Any], mode: str, key: str | None, map_file: str | None) -> list[str]:
+    warnings: list[str] = []
+    legs = [leg for day in data["days"] for leg in day["legs"]]
+    if mode in ("auto", "data-only") and not key:
+        warnings.append("No AMAP_KEY/GAODE_KEY configured; route metrics use estimates where API data is unavailable.")
+    if any(leg.get("estimated") for leg in legs):
+        warnings.append("One or more driving legs contain estimated metrics; verify before booking or departure.")
+    missing_coords = [f'{leg["from"]}->{leg["to"]}' for leg in legs if not leg.get("origin") or not leg.get("destination")]
+    if missing_coords:
+        warnings.append("Some places could not be geocoded: " + ", ".join(missing_coords))
+    lookup_errors = [f'{leg["from"]}->{leg["to"]}: {leg.get("lookup_error")}' for leg in legs if leg.get("lookup_error")]
+    if lookup_errors:
+        warnings.append("Map lookup errors occurred: " + " | ".join(lookup_errors))
+    if data.get("map_png_error"):
+        warnings.append(f'PNG map generation failed: {data["map_png_error"]}')
+    if data.get("map", {}).get("fallback"):
+        warnings.append("Static route image fell back to schematic SVG; the HTML still contains the interactive route map.")
+    if mode != "data-only" and not map_file:
+        warnings.append("No static route image was generated.")
+    if mode == "data-only":
+        warnings.append("Data-only mode skipped HTML and route image generation.")
+    return warnings
+
+
+def build_manifest(
+    data: dict[str, Any],
+    mode: str,
+    out_dir: Path,
+    key: str | None,
+    html_file: str | None,
+    map_file: str | None,
+) -> dict[str, Any]:
+    counts = source_counts(data)
+    if not counts:
+        data_source = "none"
+    elif len(counts) == 1:
+        data_source = next(iter(counts))
+    else:
+        data_source = "mixed"
+
+    files = {
+        "data": "trip-data.json",
+        "manifest": "manifest.json",
+        "html": html_file if html_file and (out_dir / html_file).exists() else None,
+        "map_image": map_file,
+    }
+    totals = data.get("totals", {})
+    legs = [leg for day in data["days"] for leg in day["legs"]]
+    return {
+        "schema_version": 1,
+        "mode": mode,
+        "title": data.get("title", ""),
+        "start_date": data.get("start_date"),
+        "data_source": data_source,
+        "source_counts": counts,
+        "files": files,
+        "map": data.get("map"),
+        "totals": totals,
+        "counts": {
+            "days": len(data["days"]),
+            "driving_days": sum(1 for day in data["days"] if day["legs"]),
+            "legs": len(legs),
+            "estimated_legs": sum(1 for leg in legs if leg.get("estimated")),
+        },
+        "warnings": output_warnings(data, mode, key, map_file),
+    }
+
+
+def has_accuracy_failure(data: dict[str, Any]) -> bool:
+    legs = [leg for day in data["days"] for leg in day["legs"]]
+    return any(leg.get("source") != "amap" or leg.get("estimated") or leg.get("lookup_error") for leg in legs)
+
+
+def write_outputs(data: dict[str, Any], out_dir: Path, key: str | None, mode: str = "auto") -> dict[str, Any]:
     out_dir.mkdir(parents=True, exist_ok=True)
-    # IMPORTANT: generate the map FIRST. generate_route_map() mutates
-    # data["map"] (file/source/fallback), and that metadata must be present
-    # when we serialize trip-data.json below so downstream consumers know
-    # which map file exists and whether it is a fallback. May return None
-    # when no static map could be produced (e.g. Playwright unavailable).
-    map_file = generate_route_map(data, out_dir, key)
+    map_file = None
+    html_file = None
+    if mode != "data-only":
+        # IMPORTANT: generate the map FIRST. generate_route_map() mutates
+        # data["map"] (file/source/fallback), and that metadata must be present
+        # when we serialize trip-data.json below so downstream consumers know
+        # which map file exists and whether it is a fallback.
+        map_file = generate_route_map(data, out_dir, key)
     (out_dir / "trip-data.json").write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-    generate_html(data, out_dir / "trip.html", map_file)
+    if mode != "data-only":
+        html_file = "index.html" if mode == "publish-demo" else "trip.html"
+        generate_html(data, out_dir / html_file, map_file)
+    manifest = build_manifest(data, mode, out_dir, key, html_file, map_file)
+    (out_dir / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+    return manifest
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Generate self-drive trip data, HTML, and a map-based route image.")
     parser.add_argument("input", help="Text file containing D1/D2 day blocks and A 到 B route lines.")
-    parser.add_argument("--out", default="./trip-output", help="Output directory.")
+    parser.add_argument("--out", default=None, help="Output directory. Defaults to ./trip-output, or ./docs in publish-demo mode.")
     parser.add_argument("--title", default="自驾行程", help="Trip title used in generated outputs.")
     parser.add_argument("--start-date", default=None,
                         help="Departure date YYYY-MM-DD (e.g. 2026-07-17). When set, each day shows its calendar date and weekday.")
-    parser.add_argument("--no-api", action="store_true", help="Skip map API calls and generate estimated preview data.")
+    parser.add_argument(
+        "--mode",
+        choices=("auto", "estimate", "accurate", "publish-demo", "data-only"),
+        default="auto",
+        help="Generation mode: auto uses API when configured; estimate skips API; accurate/publish-demo require all legs from API; data-only skips HTML/map.",
+    )
+    parser.add_argument("--no-api", action="store_true", help="Legacy alias for --mode estimate.")
     args = parser.parse_args()
 
     input_path = Path(args.input)
@@ -1516,20 +1626,36 @@ def main() -> int:
         print("No route legs found. Use lines such as: 合肥 到 岳阳", file=sys.stderr)
         return 2
 
-    key = None if args.no_api else amap_key()
-    data = enrich(days, use_api=not args.no_api)
+    if args.no_api and args.mode != "auto":
+        print("--no-api cannot be combined with --mode; use --mode estimate instead.", file=sys.stderr)
+        return 2
+
+    load_dotenv(Path(".env"))
+    mode = "estimate" if args.no_api else args.mode
+    key = amap_key()
+    if mode == "estimate":
+        key = None
+    if mode in ("accurate", "publish-demo") and not key:
+        print(f"{mode} mode requires AMAP_KEY or GAODE_KEY.", file=sys.stderr)
+        return 3
+
+    use_api = mode in ("auto", "accurate", "publish-demo", "data-only") and bool(key)
+    data = enrich(days, use_api=use_api)
     data["title"] = args.title
     start_date = parse_start_date(getattr(args, "start_date", None))
     if start_date:
         data["start_date"] = start_date.isoformat()
-    write_outputs(data, Path(args.out), key)
+    out_dir = Path(args.out) if args.out else Path("docs" if mode == "publish-demo" else "trip-output")
+    manifest = write_outputs(data, out_dir, key, mode)
 
-    source_count: dict[str, int] = {}
-    for day in data["days"]:
-        for leg in day["legs"]:
-            source_count[leg["source"]] = source_count.get(leg["source"], 0) + 1
-    print(f"Wrote: {Path(args.out).resolve()}")
-    print("Sources:", ", ".join(f"{source}={count}" for source, count in sorted(source_count.items())))
+    print(f"Wrote: {out_dir.resolve()}")
+    print("Mode:", mode)
+    print("Sources:", ", ".join(f"{source}={count}" for source, count in sorted(manifest["source_counts"].items())))
+    if manifest["warnings"]:
+        print("Warnings:", " | ".join(manifest["warnings"]))
+    if mode in ("accurate", "publish-demo") and has_accuracy_failure(data):
+        print(f"{mode} mode failed: one or more legs did not use complete Amap data.", file=sys.stderr)
+        return 3
     return 0
 
 

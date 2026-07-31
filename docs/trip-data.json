@@ -7,7 +7,7 @@
           "from": "合肥",
           "to": "岳阳",
           "distance_km": 593.1,
-          "duration_min": 395,
+          "duration_min": 393,
           "toll_cny": 292.0,
           "polyline": [
             [
@@ -18158,7 +18158,7 @@
       "notes": [],
       "title": "合肥 → 岳阳",
       "distance_km": 593.1,
-      "duration_min": 395,
+      "duration_min": 393,
       "toll_cny": 292.0,
       "estimated": false
     },
@@ -18169,7 +18169,7 @@
           "from": "岳阳",
           "to": "韶山",
           "distance_km": 207.5,
-          "duration_min": 138,
+          "duration_min": 139,
           "toll_cny": 112.0,
           "polyline": [
             [
@@ -25932,7 +25932,7 @@
       "notes": [],
       "title": "岳阳 → 韶山",
       "distance_km": 207.5,
-      "duration_min": 138,
+      "duration_min": 139,
       "toll_cny": 112.0,
       "estimated": false
     },
@@ -25943,7 +25943,7 @@
           "from": "韶山",
           "to": "凤凰古城",
           "distance_km": 372.4,
-          "duration_min": 254,
+          "duration_min": 256,
           "toll_cny": 209.0,
           "polyline": [
             [
@@ -41598,7 +41598,7 @@
       "notes": [],
       "title": "韶山 → 凤凰古城",
       "distance_km": 372.4,
-      "duration_min": 254,
+      "duration_min": 256,
       "toll_cny": 209.0,
       "estimated": false
     },
@@ -41609,7 +41609,7 @@
           "from": "凤凰古城",
           "to": "荔波",
           "distance_km": 413.8,
-          "duration_min": 272,
+          "duration_min": 273,
           "toll_cny": 370.0,
           "polyline": [
             [
@@ -61516,7 +61516,7 @@
       "notes": [],
       "title": "凤凰古城 → 荔波",
       "distance_km": 413.8,
-      "duration_min": 272,
+      "duration_min": 273,
       "toll_cny": 370.0,
       "estimated": false
     },
@@ -63966,7 +63966,7 @@
           "from": "小七孔",
           "to": "中国天眼",
           "distance_km": 197.4,
-          "duration_min": 172,
+          "duration_min": 170,
           "toll_cny": 118.0,
           "polyline": [
             [
@@ -75069,7 +75069,7 @@
           "from": "中国天眼",
           "to": "安顺",
           "distance_km": 190.8,
-          "duration_min": 172,
+          "duration_min": 171,
           "toll_cny": 89.0,
           "polyline": [
             [
@@ -84240,7 +84240,7 @@
       "notes": [],
       "title": "荔波 → 小七孔 → 中国天眼 → 安顺",
       "distance_km": 421.3,
-      "duration_min": 403,
+      "duration_min": 400,
       "toll_cny": 207.0,
       "estimated": false
     },
@@ -92836,7 +92836,7 @@
           "from": "贵阳",
           "to": "茅台镇红军桥",
           "distance_km": 168.9,
-          "duration_min": 119,
+          "duration_min": 118,
           "toll_cny": 131.0,
           "polyline": [
             [
@@ -101499,7 +101499,7 @@
           "from": "茅台镇红军桥",
           "to": "遵义会议遗址",
           "distance_km": 79.7,
-          "duration_min": 85,
+          "duration_min": 82,
           "toll_cny": 63.0,
           "polyline": [
             [
@@ -106370,7 +106370,7 @@
           "from": "遵义会议遗址",
           "to": "重庆",
           "distance_km": 257.7,
-          "duration_min": 186,
+          "duration_min": 185,
           "toll_cny": 198.0,
           "polyline": [
             [
@@ -117085,7 +117085,7 @@
       "notes": [],
       "title": "贵阳 → 茅台镇红军桥 → 遵义会议遗址 → 重庆",
       "distance_km": 506.3,
-      "duration_min": 390,
+      "duration_min": 385,
       "toll_cny": 392.0,
       "estimated": false
     },
@@ -117108,7 +117108,7 @@
           "from": "重庆",
           "to": "合肥",
           "distance_km": 1220.9,
-          "duration_min": 832,
+          "duration_min": 831,
           "toll_cny": 720.0,
           "polyline": [
             [
@@ -160819,17 +160819,17 @@
       "notes": [],
       "title": "重庆 → 合肥",
       "distance_km": 1220.9,
-      "duration_min": 832,
+      "duration_min": 831,
       "toll_cny": 720.0,
       "estimated": false
     }
   ],
   "totals": {
     "distance_km": 3917.3,
-    "duration_min": 2843,
+    "duration_min": 2836,
     "toll_cny": 2388.0
   },
-  "title": "2026 暑假自驾游",
+  "title": "Self-Drive Trip Planner Demo",
   "start_date": "2026-07-17",
   "map": {
     "file": "route-map.png",

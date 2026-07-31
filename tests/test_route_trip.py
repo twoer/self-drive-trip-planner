@@ -96,13 +96,21 @@ D3
             self.assertIn("Wrote:", result.stdout)
             self.assertTrue((output_dir / "trip.html").is_file())
             self.assertTrue((output_dir / "trip-data.json").is_file())
+            self.assertTrue((output_dir / "manifest.json").is_file())
 
             # The static map is PNG when Playwright is available, otherwise SVG.
             data = json.loads((output_dir / "trip-data.json").read_text(encoding="utf-8"))
+            manifest = json.loads((output_dir / "manifest.json").read_text(encoding="utf-8"))
             map_file = data["map"]["file"]
             self.assertTrue((output_dir / map_file).is_file(), f"{map_file} should exist")
             self.assertIn(data["map"]["source"],
                           ("leaflet-playwright-screenshot", "fallback-svg"))
+            self.assertEqual(manifest["mode"], "estimate")
+            self.assertEqual(manifest["files"]["data"], "trip-data.json")
+            self.assertEqual(manifest["files"]["html"], "trip.html")
+            self.assertEqual(manifest["files"]["map_image"], map_file)
+            self.assertEqual(manifest["data_source"], "estimated")
+            self.assertGreaterEqual(len(manifest["warnings"]), 1)
 
             self.assertEqual(len(data["days"]), 10)
             self.assertEqual(data["days"][6]["title"], "贵阳市区")
@@ -126,9 +134,86 @@ D3
                 check=True, text=True, capture_output=True, env=env,
             )
             data = json.loads((output_dir / "trip-data.json").read_text(encoding="utf-8"))
+            manifest = json.loads((output_dir / "manifest.json").read_text(encoding="utf-8"))
             self.assertTrue((output_dir / "route-map.svg").is_file())
             self.assertEqual(data["map"]["source"], "fallback-svg")
             self.assertTrue(data["map"]["fallback"])
+            self.assertEqual(manifest["files"]["map_image"], "route-map.svg")
+
+    def test_data_only_mode_writes_only_json_contract(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            output_dir = Path(tmp) / "trip-output"
+            subprocess.run(
+                [
+                    sys.executable,
+                    str(SCRIPT),
+                    str(ROOT / "examples" / "simple-trip.txt"),
+                    "--out",
+                    str(output_dir),
+                    "--title",
+                    "Demo",
+                    "--mode",
+                    "data-only",
+                ],
+                check=True,
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertTrue((output_dir / "trip-data.json").is_file())
+            self.assertTrue((output_dir / "manifest.json").is_file())
+            self.assertFalse((output_dir / "trip.html").exists())
+            self.assertFalse((output_dir / "route-map.png").exists())
+            self.assertFalse((output_dir / "route-map.svg").exists())
+            manifest = json.loads((output_dir / "manifest.json").read_text(encoding="utf-8"))
+            self.assertEqual(manifest["mode"], "data-only")
+            self.assertIsNone(manifest["files"]["html"])
+            self.assertIsNone(manifest["files"]["map_image"])
+
+    def test_publish_demo_writes_index_html_contract(self):
+        import os
+        with tempfile.TemporaryDirectory() as tmp:
+            output_dir = Path(tmp) / "docs"
+            old_value = os.environ.get("SDTP_NO_PLAYWRIGHT")
+            os.environ["SDTP_NO_PLAYWRIGHT"] = "1"
+            try:
+                days = self.route_trip.parse_itinerary((ROOT / "examples" / "simple-trip.txt").read_text(encoding="utf-8"))
+                data = self.route_trip.enrich(days, use_api=False)
+                data["title"] = "Demo"
+                self.route_trip.write_outputs(data, output_dir, key=None, mode="publish-demo")
+            finally:
+                if old_value is None:
+                    os.environ.pop("SDTP_NO_PLAYWRIGHT", None)
+                else:
+                    os.environ["SDTP_NO_PLAYWRIGHT"] = old_value
+
+            self.assertTrue((output_dir / "index.html").is_file())
+            self.assertFalse((output_dir / "trip.html").exists())
+            manifest = json.loads((output_dir / "manifest.json").read_text(encoding="utf-8"))
+            self.assertEqual(manifest["mode"], "publish-demo")
+            self.assertEqual(manifest["files"]["html"], "index.html")
+
+    def test_accurate_mode_requires_key(self):
+        import os
+        with tempfile.TemporaryDirectory() as tmp:
+            env = {key: value for key, value in os.environ.items() if key not in ("AMAP_KEY", "GAODE_KEY")}
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(SCRIPT),
+                    str(ROOT / "examples" / "simple-trip.txt"),
+                    "--out",
+                    str(Path(tmp) / "trip-output"),
+                    "--mode",
+                    "accurate",
+                ],
+                text=True,
+                capture_output=True,
+                env=env,
+            )
+
+            self.assertEqual(result.returncode, 3)
+            self.assertIn("requires AMAP_KEY or GAODE_KEY", result.stderr)
 
 
 if __name__ == "__main__":
