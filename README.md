@@ -27,6 +27,14 @@ open trip-output/trip.html
 
 `make demo` automatically uses Amap route data when `.env`, `AMAP_KEY`, or `GAODE_KEY` is configured. Without a key, it runs an estimated preview and records warnings in `trip-output/manifest.json`.
 
+For accurate mainland China routes, create a Web Service key in the [Gaode/Amap Open Platform console](https://console.amap.com/dev/key/app) and put it in local `.env`:
+
+```bash
+AMAP_KEY=your-gaode-web-service-key
+```
+
+The local `.env` file is ignored by git and is not copied into generated plugin packages.
+
 ## Install As A Codex Skill
 
 Install a clean copy into the default Codex skills directory:
@@ -56,6 +64,12 @@ Validate the generated plugin package when the local Codex plugin validator is a
 
 ```bash
 make validate-plugin
+```
+
+Run the portable package checks used by CI:
+
+```bash
+make check-plugin-package
 ```
 
 ## CLI Usage
@@ -192,6 +206,12 @@ Generate the GitHub Pages demo:
 
 ```bash
 make pages-demo
+```
+
+Generate 20 dense random demo trips for UI stress testing:
+
+```bash
+make demo-batch
 ```
 
 Generated outputs are ignored by git.

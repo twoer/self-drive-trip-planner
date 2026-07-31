@@ -50,6 +50,8 @@ PLUGIN_JSON = {
         "category": "Productivity",
         "capabilities": ["Write"],
         "websiteURL": "https://twoer.github.io/self-drive-trip-planner/",
+        "privacyPolicyURL": "https://twoer.github.io/self-drive-trip-planner/privacy.html",
+        "termsOfServiceURL": "https://twoer.github.io/self-drive-trip-planner/terms.html",
         "defaultPrompt": [
             "Use my D1/D2 road-trip text to generate JSON, HTML, map, and manifest.",
             "Create an accurate Amap-backed self-drive itinerary from this route.",
@@ -80,7 +82,7 @@ SKILL_DIRS = [
 
 
 def copy_tree(src: Path, dst: Path) -> None:
-    ignore = shutil.ignore_patterns("__pycache__", "*.pyc", ".DS_Store", "package_plugin.py")
+    ignore = shutil.ignore_patterns("__pycache__", "*.pyc", ".DS_Store", "package_plugin.py", "check_plugin_package.py")
     shutil.copytree(src, dst, ignore=ignore)
 
 

@@ -6,7 +6,7 @@ CODEX_SKILLS_DIR ?= $(HOME)/.codex/skills
 PLUGIN_CREATOR_DIR ?= $(HOME)/.codex/skills/.system/plugin-creator
 PLUGIN_VALIDATOR ?= $(PLUGIN_CREATOR_DIR)/scripts/validate_plugin.py
 
-.PHONY: install setup demo install-skill test demo-estimate demo-api demo-data pages-demo package-plugin validate-plugin
+.PHONY: install setup demo install-skill test demo-estimate demo-api demo-data demo-batch pages-demo package-plugin check-plugin-package validate-plugin
 
 install:
 	$(PYTHON) -m pip install -r requirements.txt
@@ -33,6 +33,9 @@ demo-api:
 demo-data:
 	$(PYTHON) scripts/route_trip.py examples/simple-trip.txt --out $(OUT) --title "$(TITLE)" --start-date $(START_DATE) --mode data-only
 
+demo-batch:
+	$(PYTHON) scripts/generate_demo_batch.py --count 20 --min-days 3 --max-days 30 --out trip-output/random-demo --mode auto
+
 pages-demo:
 	$(PYTHON) scripts/route_trip.py examples/simple-trip.txt --out docs --title "Self-Drive Trip Planner Demo" --start-date $(START_DATE) --mode publish-demo
 	touch docs/.nojekyll
@@ -40,5 +43,8 @@ pages-demo:
 package-plugin:
 	$(PYTHON) scripts/package_plugin.py --out dist
 
-validate-plugin: package-plugin
+check-plugin-package: package-plugin
+	$(PYTHON) scripts/check_plugin_package.py dist/self-drive-trip-planner
+
+validate-plugin: package-plugin check-plugin-package
 	$(PYTHON) $(PLUGIN_VALIDATOR) dist/self-drive-trip-planner
