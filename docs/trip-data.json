@@ -18169,7 +18169,7 @@
           "from": "岳阳",
           "to": "韶山",
           "distance_km": 207.5,
-          "duration_min": 140,
+          "duration_min": 139,
           "toll_cny": 112.0,
           "polyline": [
             [
@@ -25932,7 +25932,7 @@
       "notes": [],
       "title": "岳阳 → 韶山",
       "distance_km": 207.5,
-      "duration_min": 140,
+      "duration_min": 139,
       "toll_cny": 112.0,
       "estimated": false
     },
@@ -25943,7 +25943,7 @@
           "from": "韶山",
           "to": "凤凰古城",
           "distance_km": 372.4,
-          "duration_min": 247,
+          "duration_min": 248,
           "toll_cny": 209.0,
           "polyline": [
             [
@@ -41598,7 +41598,7 @@
       "notes": [],
       "title": "韶山 → 凤凰古城",
       "distance_km": 372.4,
-      "duration_min": 247,
+      "duration_min": 248,
       "toll_cny": 209.0,
       "estimated": false
     },
@@ -41609,7 +41609,7 @@
           "from": "凤凰古城",
           "to": "荔波",
           "distance_km": 413.8,
-          "duration_min": 273,
+          "duration_min": 274,
           "toll_cny": 370.0,
           "polyline": [
             [
@@ -61516,7 +61516,7 @@
       "notes": [],
       "title": "凤凰古城 → 荔波",
       "distance_km": 413.8,
-      "duration_min": 273,
+      "duration_min": 274,
       "toll_cny": 370.0,
       "estimated": false
     },
@@ -63966,7 +63966,7 @@
           "from": "小七孔",
           "to": "中国天眼",
           "distance_km": 197.4,
-          "duration_min": 169,
+          "duration_min": 171,
           "toll_cny": 118.0,
           "polyline": [
             [
@@ -75069,7 +75069,7 @@
           "from": "中国天眼",
           "to": "安顺",
           "distance_km": 190.8,
-          "duration_min": 167,
+          "duration_min": 169,
           "toll_cny": 89.0,
           "polyline": [
             [
@@ -84240,7 +84240,7 @@
       "notes": [],
       "title": "荔波 → 小七孔 → 中国天眼 → 安顺",
       "distance_km": 421.3,
-      "duration_min": 393,
+      "duration_min": 397,
       "toll_cny": 207.0,
       "estimated": false
     },
@@ -87218,7 +87218,7 @@
           "from": "黄果树",
           "to": "贵阳",
           "distance_km": 130.8,
-          "duration_min": 96,
+          "duration_min": 97,
           "toll_cny": 66.0,
           "polyline": [
             [
@@ -92845,7 +92845,7 @@
       "notes": [],
       "title": "安顺 → 黄果树 → 贵阳",
       "distance_km": 181.9,
-      "duration_min": 147,
+      "duration_min": 148,
       "toll_cny": 86.0,
       "estimated": false
     },
@@ -92868,7 +92868,7 @@
           "from": "贵阳",
           "to": "茅台镇红军桥",
           "distance_km": 168.9,
-          "duration_min": 119,
+          "duration_min": 118,
           "toll_cny": 131.0,
           "polyline": [
             [
@@ -101531,7 +101531,7 @@
           "from": "茅台镇红军桥",
           "to": "遵义会议遗址",
           "distance_km": 79.7,
-          "duration_min": 75,
+          "duration_min": 76,
           "toll_cny": 63.0,
           "polyline": [
             [
@@ -106402,7 +106402,7 @@
           "from": "遵义会议遗址",
           "to": "重庆",
           "distance_km": 257.7,
-          "duration_min": 179,
+          "duration_min": 178,
           "toll_cny": 198.0,
           "polyline": [
             [
@@ -117117,7 +117117,7 @@
       "notes": [],
       "title": "贵阳 → 茅台镇红军桥 → 遵义会议遗址 → 重庆",
       "distance_km": 506.3,
-      "duration_min": 373,
+      "duration_min": 372,
       "toll_cny": 392.0,
       "estimated": false
     },
@@ -117140,7 +117140,7 @@
           "from": "重庆",
           "to": "合肥",
           "distance_km": 1220.9,
-          "duration_min": 817,
+          "duration_min": 818,
           "toll_cny": 720.0,
           "polyline": [
             [
@@ -160851,14 +160851,14 @@
       "notes": [],
       "title": "重庆 → 合肥",
       "distance_km": 1220.9,
-      "duration_min": 817,
+      "duration_min": 818,
       "toll_cny": 720.0,
       "estimated": false
     }
   ],
   "totals": {
     "distance_km": 3917.2,
-    "duration_min": 2761,
+    "duration_min": 2767,
     "toll_cny": 2388.0
   },
   "title": "Self-Drive Trip Planner Demo",

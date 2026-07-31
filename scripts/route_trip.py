@@ -2194,15 +2194,35 @@ const pagerIndex = document.getElementById('pagerIndex');
 const pagerTitle = document.getElementById('pagerTitle');
 const pagerDots = Array.from(document.querySelectorAll('.pager-dot'));
 let currentDay = 0;
+let isProgrammaticScroll = false;
 
-function setCurrentDay(index, shouldScroll = true) {{
+function scrollToCurrentDay(behavior = 'smooth') {{
+  if (!daySlider) return;
+  window.requestAnimationFrame(() => {{
+    const targetSlide = daySlider.children[currentDay];
+    if (!targetSlide || !daySlider.clientWidth) return;
+    isProgrammaticScroll = true;
+    const targetLeft = targetSlide.offsetLeft - daySlider.offsetLeft;
+    if (behavior === 'auto') {{
+      const previousScrollBehavior = daySlider.style.scrollBehavior;
+      daySlider.style.scrollBehavior = 'auto';
+      daySlider.scrollLeft = targetLeft;
+      daySlider.style.scrollBehavior = previousScrollBehavior;
+    }} else {{
+      daySlider.scrollTo({{ left: targetLeft, behavior }});
+    }}
+    window.setTimeout(() => {{ isProgrammaticScroll = false; }}, behavior === 'smooth' ? 260 : 80);
+  }});
+}}
+
+function setCurrentDay(index, shouldScroll = true, behavior = 'smooth') {{
   const total = dayTitles.length;
   currentDay = Math.max(0, Math.min(index, total - 1));
   pagerIndex.textContent = String(currentDay + 1);
   pagerTitle.textContent = dayTitles[currentDay];
   pagerDots.forEach((dot, dotIndex) => dot.classList.toggle('active', dotIndex === currentDay));
-  if (shouldScroll && daySlider) {{
-    daySlider.scrollTo({{ left: currentDay * daySlider.clientWidth, behavior: 'smooth' }});
+  if (shouldScroll) {{
+    scrollToCurrentDay(behavior);
   }}
 }}
 
@@ -2212,6 +2232,7 @@ document.querySelectorAll('.tab').forEach((tab) => {{
     document.querySelectorAll('.tab-panel').forEach((panel) => panel.classList.remove('active'));
     tab.classList.add('active');
     document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+    if (tab.dataset.tab === 'daily') scrollToCurrentDay('auto');
     if (window.lucide) window.lucide.createIcons();
   }});
 }});
@@ -2219,16 +2240,22 @@ document.getElementById('prevDay').addEventListener('click', () => setCurrentDay
 document.getElementById('nextDay').addEventListener('click', () => setCurrentDay(currentDay + 1));
 pagerDots.forEach((dot) => dot.addEventListener('click', () => setCurrentDay(Number(dot.dataset.slide))));
 daySlider.addEventListener('scroll', () => {{
+  if (isProgrammaticScroll) return;
   window.clearTimeout(daySlider._snapTimer);
   daySlider._snapTimer = window.setTimeout(() => {{
-    setCurrentDay(Math.round(daySlider.scrollLeft / daySlider.clientWidth), false);
+    const slides = Array.from(daySlider.children);
+    const nearest = slides.reduce((best, slide, index) => {{
+      const distance = Math.abs((slide.offsetLeft - daySlider.offsetLeft) - daySlider.scrollLeft);
+      return distance < best.distance ? {{ index, distance }} : best;
+    }}, {{ index: currentDay, distance: Number.POSITIVE_INFINITY }});
+    setCurrentDay(nearest.index, false);
   }}, 80);
 }});
-window.addEventListener('resize', () => setCurrentDay(currentDay, true));
+window.addEventListener('resize', () => setCurrentDay(currentDay, true, 'auto'));
 
-// Auto-jump to today's card when a start date is set. e.g. start=2026-07-17
-// and today is 2026-07-21 -> D5. If today is before the trip, stay on D1;
-// if after the trip, stay on the last day.
+// Auto-jump to today's card only while the trip is in progress. e.g.
+// start=2026-07-17 and today=2026-07-21 -> D5. If today is before or after
+// the trip, stay on D1 so the itinerary opens from the beginning.
 function todayDayIndex() {{
   if (!tripStartDate) return 0;
   const start = new Date(tripStartDate + 'T00:00:00');
@@ -2237,8 +2264,8 @@ function todayDayIndex() {{
   today.setHours(0, 0, 0, 0);
   start.setHours(0, 0, 0, 0);
   const diffDays = Math.round((today - start) / 86400000);
-  if (diffDays < 0) return 0;                       // before trip -> D1
-  return Math.min(diffDays, dayTitles.length - 1);  // cap at last day
+  if (diffDays < 0 || diffDays >= dayTitles.length) return 0;
+  return diffDays;
 }}
 setCurrentDay(todayDayIndex(), false);
 if (window.lucide) window.lucide.createIcons();
