@@ -79,6 +79,19 @@ D3
         self.assertEqual(json.loads(payload["body"])["error"], "bad json")
         self.assertEqual(payload["headers"]["Content-Type"], "application/json; charset=utf-8")
 
+    def test_editor_static_file_is_limited_to_dist(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            dist = Path(tmp)
+            (dist / "assets").mkdir()
+            (dist / "assets" / "app.js").write_text("console.log('ok')", encoding="utf-8")
+            self.editor.EDITOR_DIST = dist
+
+            static_file = self.editor.editor_static_file("/assets/app.js")
+
+            self.assertEqual(static_file, (dist / "assets" / "app.js").resolve())
+            self.assertIsNone(self.editor.editor_static_file("/../secret.txt"))
+            self.assertEqual(self.editor.content_type_for(static_file), "text/javascript; charset=utf-8")
+
 
 if __name__ == "__main__":
     unittest.main()

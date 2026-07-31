@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import mimetypes
 import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -27,6 +28,7 @@ import route_trip  # noqa: E402
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8765
 DEFAULT_OUTPUT_DIR = ROOT / "trip-output" / "editor"
+EDITOR_DIST = ROOT / "editor" / "dist"
 ALLOWED_MODES = {"estimate", "auto", "accurate", "data-only"}
 
 
@@ -175,43 +177,103 @@ EDITOR_HTML = r"""<!doctype html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>自驾行程编辑器</title>
   <style>
-:root { --bg:#F5F7FA; --card:#FFFFFF; --line:#DDE5EE; --text:#1F2D3D; --muted:#6F7D8C; --primary:#2C6BB2; --accent:#D96B3A; }
+:root {
+  --bg:#F3F6FA;
+  --card:#FFFFFF;
+  --card-soft:#F8FAFD;
+  --line:#D9E2EC;
+  --line-strong:#C8D4E1;
+  --text:#1E2B3A;
+  --muted:#6B7786;
+  --primary:#276BB6;
+  --primary-soft:#E8F1FC;
+  --accent:#D76537;
+  --danger:#B94A3A;
+  --danger-soft:#FFF2EF;
+  --shadow:0 12px 28px rgba(31, 45, 61, 0.08);
+}
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
 button, input, textarea, select { font: inherit; }
-.app { max-width: 1320px; margin: 0 auto; padding: 18px; display: grid; gap: 14px; }
-.topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.app { width: min(1380px, calc(100vw - 40px)); margin: 0 auto; padding: 18px 0 22px; display: grid; gap: 14px; }
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(10px);
+}
 .brand { min-width: 0; }
-.brand h1 { margin: 0; font-size: 20px; line-height: 1.2; }
-.brand p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+.brand h1 { margin: 0; font-size: 22px; line-height: 1.2; letter-spacing: 0; }
+.brand p { margin: 5px 0 0; color: var(--muted); font-size: 13px; }
 .actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.btn { border: 1px solid var(--line); background: #FFFFFF; color: var(--text); border-radius: 8px; padding: 9px 13px; cursor: pointer; font-weight: 700; }
+.btn {
+  min-height: 34px;
+  border: 1px solid var(--line);
+  background: #FFFFFF;
+  color: var(--text);
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.btn:hover { border-color: var(--line-strong); background: var(--card-soft); }
+.btn:focus-visible, .input:focus-visible, .textarea:focus-visible, .select:focus-visible, .day-label:focus-visible { outline: 2px solid color-mix(in srgb, var(--primary) 55%, white); outline-offset: 2px; }
 .btn.primary { background: var(--primary); border-color: var(--primary); color: #FFFFFF; }
-.btn.danger { color: #B33D2E; }
-.grid { display: grid; grid-template-columns: minmax(360px, 0.9fr) minmax(480px, 1.1fr); gap: 14px; align-items: start; }
-.panel { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 14px; }
+.btn.primary:hover { background: #1F5EA5; }
+.btn.danger { color: var(--danger); background: var(--danger-soft); border-color: #F2CFC8; }
+.grid { display: grid; grid-template-columns: minmax(380px, 0.82fr) minmax(560px, 1.18fr); gap: 16px; align-items: start; }
+.panel { background: var(--card); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow); }
+.input-panel { position: sticky; top: 76px; overflow: hidden; }
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--line); background: var(--card-soft); }
+.panel-title { min-width: 0; }
+.panel-title strong { display: block; font-size: 15px; }
+.panel-title span { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; }
+.panel-body { padding: 14px 16px 16px; }
 .form-row { display: grid; grid-template-columns: 1fr 150px 130px; gap: 8px; margin-bottom: 10px; }
 .field { display: grid; gap: 5px; min-width: 0; }
 .field span { font-size: 12px; color: var(--muted); font-weight: 700; }
 .input, .textarea, .select { width: 100%; border: 1px solid var(--line); border-radius: 8px; background: #FFFFFF; color: var(--text); padding: 9px 10px; outline: none; }
-.textarea { min-height: 560px; resize: vertical; line-height: 1.55; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; }
-.day-list { display: grid; gap: 10px; }
+.textarea { min-height: calc(100vh - 240px); resize: vertical; line-height: 1.58; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; }
+.summary-bar { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
+.metric { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; background: #FFFFFF; }
+.metric span { display: block; color: var(--muted); font-size: 11px; font-weight: 700; }
+.metric strong { display: block; margin-top: 2px; color: var(--primary); font-size: 20px; line-height: 1.1; }
+.day-list { display: grid; gap: 10px; max-height: calc(100vh - 210px); overflow: auto; padding-right: 4px; }
+.day-list::-webkit-scrollbar { width: 8px; }
+.day-list::-webkit-scrollbar-thumb { background: #C8D4E1; border-radius: 999px; }
 .day-card { border: 1px solid var(--line); border-radius: 8px; background: #FFFFFF; overflow: hidden; }
-.day-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line); background: #FAFBFC; }
+.day-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 10px 12px; border-bottom: 1px solid var(--line); background: var(--card-soft); }
 .day-title { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.day-label { width: 54px; border: 1px solid var(--line); border-radius: 8px; padding: 7px 8px; font-weight: 800; color: var(--primary); }
-.day-route { min-width: 0; font-weight: 800; overflow-wrap: anywhere; }
-.item-list { display: grid; gap: 8px; padding: 12px; }
-.leg-row, .note-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; align-items: center; }
-.note-row { grid-template-columns: 1fr auto; }
+.day-label { width: 54px; border: 1px solid var(--line); border-radius: 8px; padding: 7px 8px; font-weight: 900; color: var(--primary); background: #FFFFFF; text-align: center; }
+.day-route { min-width: 0; font-weight: 900; overflow-wrap: anywhere; line-height: 1.35; }
+.item-list { display: grid; gap: 8px; padding: 10px 12px; }
+.leg-row, .note-row { display: grid; grid-template-columns: minmax(120px, 1fr) minmax(120px, 1fr) auto; gap: 8px; align-items: center; }
+.note-row { grid-template-columns: minmax(0, 1fr) auto; }
 .mini-actions { display: flex; align-items: center; gap: 8px; padding: 0 12px 12px; }
-.status { min-height: 22px; color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+.status-card { margin-top: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--card-soft); padding: 10px 12px; }
+.status { min-height: 20px; color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
 .status.error { color: #B33D2E; }
-.links { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
-.links a { color: var(--primary); font-weight: 800; text-decoration: none; }
+.links { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.links a { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; color: var(--primary); background: #FFFFFF; font-weight: 800; text-decoration: none; }
 .warnings { margin-top: 8px; display: grid; gap: 6px; }
 .warning { border: 1px solid #F0D1BF; background: #FFF8F3; color: #9B4B28; border-radius: 8px; padding: 8px 10px; font-size: 12px; }
-@media (max-width: 860px) { .grid { grid-template-columns: 1fr; } .form-row { grid-template-columns: 1fr; } .textarea { min-height: 360px; } .leg-row { grid-template-columns: 1fr; } }
+@media (max-width: 960px) {
+  .app { width: min(100vw - 24px, 760px); }
+  .topbar { align-items: flex-start; }
+  .grid { grid-template-columns: 1fr; }
+  .input-panel { position: static; }
+  .form-row { grid-template-columns: 1fr; }
+  .textarea { min-height: 360px; }
+  .day-list { max-height: none; padding-right: 0; }
+  .leg-row { grid-template-columns: 1fr; }
+}
   </style>
 </head>
 <body>
@@ -221,29 +283,45 @@ button, input, textarea, select { font: inherit; }
         <h1>自驾行程编辑器</h1>
         <p>本地运行 · 输出到 trip-output/editor · 复用当前生成引擎</p>
       </div>
-      <div class="actions">
+      <div class="actions toolbar-actions">
         <button class="btn" id="parseBtn" type="button">解析</button>
         <button class="btn primary" id="generateBtn" type="button">生成</button>
       </div>
     </header>
     <main class="grid">
-      <section class="panel">
-        <div class="form-row">
-          <label class="field"><span>标题</span><input class="input" id="titleInput" value="自驾行程"></label>
-          <label class="field"><span>出发日期</span><input class="input" id="startDateInput" type="date" value="2026-07-17"></label>
-          <label class="field"><span>模式</span><select class="select" id="modeInput"><option value="estimate">estimate</option><option value="auto">auto</option><option value="accurate">accurate</option></select></label>
+      <section class="panel input-panel">
+        <div class="panel-head">
+          <div class="panel-title"><strong>输入源</strong><span>粘贴原始行程，解析后可在右侧调整</span></div>
         </div>
-        <textarea class="textarea" id="rawInput"></textarea>
+        <div class="panel-body">
+          <div class="form-row">
+            <label class="field"><span>标题</span><input class="input" id="titleInput" value="自驾行程"></label>
+            <label class="field"><span>出发日期</span><input class="input" id="startDateInput" type="date" value="2026-07-17"></label>
+            <label class="field"><span>模式</span><select class="select" id="modeInput"><option value="estimate">estimate</option><option value="auto">auto</option><option value="accurate">accurate</option></select></label>
+          </div>
+          <textarea class="textarea" id="rawInput"></textarea>
+        </div>
       </section>
       <section class="panel">
-        <div class="actions" style="justify-content: space-between; margin-bottom: 10px;">
-          <strong>行程卡片</strong>
-          <button class="btn" id="addDayBtn" type="button">新增一天</button>
+        <div class="panel-head">
+          <div class="panel-title"><strong>行程卡片</strong><span>按天编辑路线段和市区停留</span></div>
+          <div class="actions">
+            <button class="btn" id="addDayBtn" type="button">新增一天</button>
+          </div>
         </div>
-        <div class="day-list" id="dayList"></div>
-        <div class="status" id="statusBox"></div>
-        <div class="links" id="resultLinks"></div>
-        <div class="warnings" id="warningList"></div>
+        <div class="panel-body">
+          <div class="summary-bar">
+            <div class="metric"><span>天数</span><strong id="dayCount">0</strong></div>
+            <div class="metric"><span>路线段</span><strong id="legCount">0</strong></div>
+            <div class="metric"><span>停留</span><strong id="noteCount">0</strong></div>
+          </div>
+          <div class="day-list" id="dayList"></div>
+          <div class="status-card">
+            <div class="status" id="statusBox"></div>
+            <div class="links" id="resultLinks"></div>
+            <div class="warnings" id="warningList"></div>
+          </div>
+        </div>
       </section>
     </main>
   </div>
@@ -254,6 +332,9 @@ const dayList = document.getElementById('dayList');
 const statusBox = document.getElementById('statusBox');
 const resultLinks = document.getElementById('resultLinks');
 const warningList = document.getElementById('warningList');
+const dayCount = document.getElementById('dayCount');
+const legCount = document.getElementById('legCount');
+const noteCount = document.getElementById('noteCount');
 let state = { budget_text: '', days: [] };
 rawInput.value = defaultText;
 
@@ -264,6 +345,14 @@ function setStatus(text, isError = false) {
 
 function escapeHtml(value) {
   return String(value || '').replace(/[&<>"']/g, (char) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+}
+
+function updateSummary() {
+  const legs = state.days.reduce((sum, day) => sum + (day.legs || []).length, 0);
+  const notes = state.days.reduce((sum, day) => sum + (day.notes || []).length, 0);
+  dayCount.textContent = String(state.days.length);
+  legCount.textContent = String(legs);
+  noteCount.textContent = String(notes);
 }
 
 function renderDays() {
@@ -283,13 +372,13 @@ function renderDays() {
       <div class="item-list">
         ${(day.legs || []).map((leg, legIndex) => `
           <div class="leg-row">
-            <input class="input" value="${escapeHtml(leg.from)}" data-leg-from="${dayIndex}:${legIndex}">
-            <input class="input" value="${escapeHtml(leg.to)}" data-leg-to="${dayIndex}:${legIndex}">
+            <input class="input" placeholder="出发地" value="${escapeHtml(leg.from)}" data-leg-from="${dayIndex}:${legIndex}">
+            <input class="input" placeholder="目的地" value="${escapeHtml(leg.to)}" data-leg-to="${dayIndex}:${legIndex}">
             <button class="btn danger" type="button" data-delete-leg="${dayIndex}:${legIndex}">删除</button>
           </div>`).join('')}
         ${(day.notes || []).map((note, noteIndex) => `
           <div class="note-row">
-            <input class="input" value="${escapeHtml(note)}" data-note="${dayIndex}:${noteIndex}">
+            <input class="input" placeholder="市区停留 / 备注" value="${escapeHtml(note)}" data-note="${dayIndex}:${noteIndex}">
             <button class="btn danger" type="button" data-delete-note="${dayIndex}:${noteIndex}">删除</button>
           </div>`).join('')}
       </div>
@@ -299,6 +388,7 @@ function renderDays() {
       </div>`;
     dayList.appendChild(card);
   });
+  updateSummary();
 }
 
 function syncFromInputs() {
@@ -397,8 +487,36 @@ document.getElementById('parseBtn').click();
 
 
 def editor_html() -> bytes:
+    dist_index = EDITOR_DIST / "index.html"
+    if dist_index.is_file():
+        return dist_index.read_bytes()
     html = EDITOR_HTML.replace("__DEFAULT_TEXT__", json.dumps(default_text(), ensure_ascii=False))
     return html.encode("utf-8")
+
+
+def editor_static_file(path: str) -> Path | None:
+    if not EDITOR_DIST.is_dir():
+        return None
+    rel_path = unquote(path).lstrip("/")
+    if not rel_path:
+        rel_path = "index.html"
+    file_path = (EDITOR_DIST / rel_path).resolve()
+    try:
+        file_path.relative_to(EDITOR_DIST.resolve())
+    except ValueError:
+        return None
+    if file_path.is_file():
+        return file_path
+    return None
+
+
+def content_type_for(path: Path) -> str:
+    content_type, _ = mimetypes.guess_type(path.name)
+    if content_type:
+        if content_type.startswith("text/") or content_type in {"application/javascript", "application/json"}:
+            return f"{content_type}; charset=utf-8"
+        return content_type
+    return "application/octet-stream"
 
 
 class EditorHandler(BaseHTTPRequestHandler):
@@ -436,6 +554,9 @@ class EditorHandler(BaseHTTPRequestHandler):
         if parsed.path == "/favicon.ico":
             self.send_bytes(b"", status=204, content_type="image/x-icon")
             return
+        if parsed.path == "/api/default-text":
+            self.send_json({"ok": True, "text": default_text()})
+            return
         if parsed.path == "/api/manifest":
             manifest_path = DEFAULT_OUTPUT_DIR / "manifest.json"
             if not manifest_path.exists():
@@ -451,6 +572,10 @@ class EditorHandler(BaseHTTPRequestHandler):
                 return
             content_type = "text/html; charset=utf-8" if file_path.suffix == ".html" else "application/octet-stream"
             self.send_bytes(file_path.read_bytes(), content_type=content_type)
+            return
+        static_file = editor_static_file(parsed.path)
+        if static_file:
+            self.send_bytes(static_file.read_bytes(), content_type=content_type_for(static_file))
             return
         self.send_json({"ok": False, "error": "接口不存在。"}, status=404)
 

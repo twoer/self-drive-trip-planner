@@ -1,0 +1,92 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 210 33% 97%;
+  --foreground: 213 31% 17%;
+  --muted: 210 28% 94%;
+  --muted-foreground: 214 12% 45%;
+  --primary: 210 63% 39%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 168 22% 91%;
+  --secondary-foreground: 180 28% 19%;
+  --accent: 17 67% 49%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 8 52% 45%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 213 26% 86%;
+  --input: 213 26% 86%;
+  --ring: 210 63% 39%;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-height: 100%;
+  background: hsl(var(--background));
+}
+
+body {
+  min-width: 320px;
+  min-height: 100%;
+  margin: 0;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button,
+a,
+input,
+textarea,
+select {
+  outline-color: hsl(var(--ring));
+}
+
+@layer components {
+  .ui-panel {
+    @apply rounded-lg border border-border bg-white shadow-panel;
+  }
+
+  .ui-panel-head {
+    @apply flex items-center justify-between gap-3 border-b border-border bg-muted px-4 py-3;
+  }
+
+  .ui-action-group {
+    @apply flex items-center gap-2;
+  }
+
+  .ui-icon-text {
+    @apply inline-flex items-center gap-1.5;
+  }
+
+  .ui-icon {
+    @apply size-4 shrink-0;
+  }
+
+  .ui-button {
+    @apply inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-border bg-white px-3 py-2 text-sm font-bold text-foreground transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-60;
+  }
+
+  .ui-button-primary {
+    @apply border-primary bg-primary text-primary-foreground hover:border-primary hover:bg-blue-800;
+  }
+
+  .ui-button-danger {
+    @apply border-red-200 bg-red-50 text-destructive hover:border-red-300 hover:bg-red-100;
+  }
+
+  .ui-input {
+    @apply w-full rounded-lg border border-input bg-white px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2;
+  }
+}

@@ -16,7 +16,7 @@ PLUGIN_NAME = "self-drive-trip-planner"
 
 PLUGIN_JSON = {
     "name": PLUGIN_NAME,
-    "version": "0.4.0",
+    "version": "0.5.0",
     "description": "Generate agent-verifiable Chinese self-drive trip plans with route data, HTML, maps, and manifests.",
     "author": {
         "name": "twoer",
@@ -95,6 +95,10 @@ def copy_tree(src: Path, dst: Path) -> None:
 
 
 def build_plugin(out_dir: Path, zip_path: Path | None = None) -> tuple[Path, Path]:
+    editor_dist = ROOT / "editor" / "dist"
+    if not (editor_dist / "index.html").is_file():
+        raise RuntimeError("Missing editor/dist/index.html. Run `make editor-build` before packaging the plugin.")
+
     plugin_dir = out_dir / PLUGIN_NAME
     if plugin_dir.exists():
         shutil.rmtree(plugin_dir)
@@ -117,6 +121,8 @@ def build_plugin(out_dir: Path, zip_path: Path | None = None) -> tuple[Path, Pat
         src = ROOT / rel_path
         if src.exists():
             copy_tree(src, skill_dir / rel_path)
+
+    copy_tree(editor_dist, skill_dir / "editor" / "dist")
 
     assets_dir = ROOT / "assets"
     if assets_dir.exists():

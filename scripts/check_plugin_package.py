@@ -17,6 +17,7 @@ REQUIRED_SKILL_FILES = [
     "scripts/route_trip.py",
     "scripts/leaflet_map.py",
     "scripts/editor_server.py",
+    "editor/dist/index.html",
 ]
 
 FORBIDDEN_PARTS = {
@@ -38,6 +39,10 @@ FORBIDDEN_FILENAMES = {
 def fail(message: str) -> None:
     print(f"ERROR: {message}", file=sys.stderr)
     raise SystemExit(1)
+
+
+def is_allowed_editor_dist(parts: tuple[str, ...]) -> bool:
+    return len(parts) >= 4 and parts[:4] == ("skills", "self-drive-trip-planner", "editor", "dist")
 
 
 def main() -> int:
@@ -78,7 +83,8 @@ def main() -> int:
             fail(f"missing required skill file: {rel_path}")
 
     for path in plugin_dir.rglob("*"):
-        if any(part in FORBIDDEN_PARTS for part in path.relative_to(plugin_dir).parts):
+        parts = path.relative_to(plugin_dir).parts
+        if any(part in FORBIDDEN_PARTS for part in parts) and not is_allowed_editor_dist(parts):
             fail(f"forbidden generated/local path in package: {path}")
         if path.name in FORBIDDEN_FILENAMES:
             fail(f"forbidden repository helper in package: {path}")

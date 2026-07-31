@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 .venv/
+editor/node_modules/
 
 .env
 .env.*
@@ -17,6 +18,8 @@ trip-input-*.txt
 htmlcov/
 
 dist/
+!editor/dist/
+!editor/dist/**
 
 .open-source-trash/
 
