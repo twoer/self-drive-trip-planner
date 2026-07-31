@@ -1480,7 +1480,7 @@ def generate_html(data: dict[str, Any], path: Path, map_file: str | None = None)
   <div class="activate-body">
     <div class="activate-title">费用计算未启用</div>
     <div class="activate-text">运行时加入电费、住宿、餐饮或景点费用参数后，这里会生成总预算和分项明细。</div>
-    <div class="activate-code">示例：--vehicle-type ev --ev-kwh-price 1.5 --ev-kwh-per-100km 16 --hotel-nightly 300 --meal-daily 100 --attraction 小七孔=120</div>
+    <div class="activate-example">你可以这样说：我是电车，电价 1.5 元/度，百公里电耗 16 度；酒店每晚 300 元，餐费每天 100 元；小七孔门票 120 元，中国天眼门票 140 元。</div>
   </div>
 </div>
 <div class="budget-muted">
@@ -1687,7 +1687,7 @@ svg {{ stroke-width: 2; }}
 .activate-body {{ min-width: 0; }}
 .activate-title {{ font-size: 15px; font-weight: 900; color: var(--text); }}
 .activate-text {{ margin-top: 4px; color: var(--text2); font-size: 12px; }}
-.activate-code {{ margin-top: 10px; padding: 10px; border-radius: 8px; background: #F1F4F8; color: #445161; font-size: 11px; line-height: 1.55; word-break: break-word; }}
+.activate-example {{ margin-top: 10px; padding: 10px; border-radius: 8px; background: #F1F4F8; color: #445161; font-size: 11px; line-height: 1.6; word-break: break-word; }}
 .budget-muted {{ background: var(--card); border: 1px dashed #D6DEE8; border-radius: 8px; padding: 12px 14px; color: var(--text2); font-size: 12px; }}
 @media print {{ .tabs, .pager-actions, .pager-dots, .map-note {{ display: none !important; }} .tab-panel {{ display: block !important; break-inside: avoid; }} .app {{ max-width: none; }} body {{ background: #FFFFFF; }} }}
 </style>

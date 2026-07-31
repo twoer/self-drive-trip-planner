@@ -54,7 +54,7 @@ Then ask Codex to use `$self-drive-trip-planner` with an itinerary.
 
 Download the latest packaged plugin from GitHub Releases:
 
-[self-drive-trip-planner-plugin.zip](https://github.com/twoer/self-drive-trip-planner/releases/download/v0.2.0/self-drive-trip-planner-plugin.zip)
+[self-drive-trip-planner-plugin.zip](https://github.com/twoer/self-drive-trip-planner/releases/download/v0.2.1/self-drive-trip-planner-plugin.zip)
 
 For a step-by-step setup guide, see [INSTALL.md](INSTALL.md).
 
@@ -117,7 +117,14 @@ python3 scripts/route_trip.py examples/simple-trip.txt --out ./trip-output --tit
 
 `GAODE_KEY` is also supported.
 
-Run with a rough budget estimate:
+Run with a rough budget estimate. In Codex, natural language is enough:
+
+```text
+我是电车，电价 1.5 元/度，百公里电耗 16 度；酒店每晚 300 元，
+餐费每天 100 元；小七孔门票 120 元，中国天眼门票 140 元。
+```
+
+CLI equivalent:
 
 ```bash
 python3 scripts/route_trip.py examples/simple-trip.txt \

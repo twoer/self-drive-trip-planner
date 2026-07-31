@@ -40,7 +40,14 @@ in `trip-output/manifest.json`.
 The generated HTML always includes a `费用` tab. If you do not provide budget
 inputs, that tab shows an activation reminder.
 
-Add budget inputs when running the CLI:
+In Codex, provide budget inputs in natural language:
+
+```text
+我是电车，电价 1.5 元/度，百公里电耗 16 度；酒店每晚 300 元，
+餐费每天 100 元；小七孔门票 120 元，中国天眼门票 140 元。
+```
+
+CLI equivalent:
 
 ```bash
 .venv/bin/python scripts/route_trip.py examples/simple-trip.txt \
