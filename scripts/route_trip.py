@@ -366,6 +366,13 @@ def unit_money_label(value: float | int | None) -> str:
     return f"¥{amount:.2f}".rstrip("0").rstrip(".")
 
 
+def compact_number_label(value: float | int, digits: int = 1) -> str:
+    number = round(float(value), digits)
+    if number.is_integer():
+        return str(int(number))
+    return f"{number:.{digits}f}".rstrip("0").rstrip(".")
+
+
 def parse_named_amount(value: str) -> dict[str, Any]:
     """Parse CLI values like ``小七孔=120`` or ``门票:80``."""
     raw = value.strip()
@@ -462,11 +469,33 @@ def split_budget_section(text: str) -> tuple[str, str]:
         line = stripped.rstrip("：:")
         if line in headings or any(stripped.startswith(f"{heading}{sep}") for heading in headings for sep in ("：", ":")):
             return "\n".join(lines[:index]).strip() + "\n", "\n".join(lines[index:]).strip()
+    for index, raw_line in enumerate(lines):
+        if re.match(r"^\s*(?:D|DAY)\s*\d+\s*$", raw_line, re.IGNORECASE):
+            leading_text = "\n".join(lines[:index]).strip()
+            if leading_text and re.search(r"两大|成人|儿童|电车|电价|电耗|酒店|住宿|餐费|餐饮|景区|景点|门票", leading_text):
+                return "\n".join(lines[index:]).strip() + "\n", leading_text
+            break
     return text, ""
 
 
 def parse_passenger_counts(text: str) -> dict[str, int]:
     passengers = {"adults": 1, "children_under_1_2m": 0, "children_over_1_2m": 0}
+    compact_party_match = re.search(
+        r"([0-9一二两俩三四五六七八九十]+)\s*大\s*([0-9一二两俩三四五六七八九十]+)\s*小([^。；;\n]*)",
+        text,
+    )
+    if compact_party_match:
+        passengers["adults"] = parse_small_count(compact_party_match.group(1)) or passengers["adults"]
+        child_count = parse_small_count(compact_party_match.group(2)) or 0
+        context = compact_party_match.group(3)
+        if re.search(r"(?:低于|小于|不到|不足|以下|免票).*1\.?2|1\.?2.*(?:以下|低于|小于|不到|不足|免票)", context):
+            passengers["children_under_1_2m"] = child_count
+        elif re.search(r"(?:高于|超过|大于|以上).*1\.?2|1\.?2.*(?:以上|高于|超过|大于|半价)", context):
+            passengers["children_over_1_2m"] = child_count
+        else:
+            passengers["children_over_1_2m"] = child_count
+        return passengers
+
     adult_match = re.search(r"([0-9一二两俩三四五六七八九十]+)\s*(?:大|个成人|位成人|成人)", text)
     if adult_match:
         passengers["adults"] = parse_small_count(adult_match.group(1)) or passengers["adults"]
@@ -496,7 +525,7 @@ def parse_first_amount(patterns: list[str], text: str) -> float | None:
 
 
 def clean_fee_name(value: str) -> str:
-    return re.sub(r"^(?:景点门票|景点费用|门票|票价|费用|费)[：:]?", "", value).strip(" ：:，,、；;。")
+    return re.sub(r"^(?:已确认景区价格|自动查价补充|查价补充|景点门票|景点费用|景区|门票|票价|费用|费)[：:]?", "", value).strip(" ：:，,、；;。（）()")
 
 
 def split_fee_fragments(value: str) -> list[str]:
@@ -548,11 +577,28 @@ def parse_attraction_fee_items(line: str) -> list[dict[str, Any]]:
     return [item for item in items if item.get("name")]
 
 
+def attraction_fee_text_from_line(line: str) -> str:
+    fragments = split_fee_fragments(line)
+    picked: list[str] = []
+    collecting = False
+    for fragment in fragments:
+        if re.search(r"其他费用|其他|杂费", fragment):
+            if collecting:
+                break
+            continue
+        if re.search(r"景点|门票|成人票|票价|景区|摆渡车|观光车|区间车|保险", fragment):
+            collecting = True
+        if collecting:
+            picked.append(fragment)
+    return "，".join(picked)
+
+
 def parse_budget_fee_items(line: str, category: str) -> list[dict[str, Any]]:
     """Parse fee fragments like ``小七孔 120 元，中国天眼 140 元``."""
     clean = re.sub(r"^(?:景点费用|景点门票|门票|其他费用|其他|杂费)\s*[:：]\s*", "", line.strip())
     if category == "attraction":
-        return parse_attraction_fee_items(line)
+        attraction_text = attraction_fee_text_from_line(line)
+        return parse_attraction_fee_items(attraction_text or line)
 
     items: list[dict[str, Any]] = []
     for match in re.finditer(r"([\u4e00-\u9fffA-Za-z0-9·（）()]+?)\s*([0-9]+(?:\.[0-9]+)?)\s*元", clean):
@@ -583,7 +629,7 @@ def parse_budget_text(text: str) -> dict[str, Any]:
 
     ev_consumption = parse_first_amount(
         [
-            r"百公里(?:电耗|耗电)\s*([0-9]+(?:\.[0-9]+)?)\s*(?:度|kwh|KWH)",
+            r"百公里(?:综合)?(?:电耗|耗电)\s*([0-9]+(?:\.[0-9]+)?)\s*(?:度|kwh|KWH)",
             r"([0-9]+(?:\.[0-9]+)?)\s*(?:度|kwh|KWH)\s*/?\s*(?:百公里|100\s*km)",
         ],
         budget_text,
@@ -603,7 +649,7 @@ def parse_budget_text(text: str) -> dict[str, Any]:
         line = raw_line.strip()
         if not line:
             continue
-        if re.search(r"景点|门票", line):
+        if re.search(r"景点|景区|门票|成人票|票价|免费|免票", line):
             result["attractions"].extend(parse_budget_fee_items(line, "attraction"))
         elif re.search(r"其他费用|其他|停车|杂费", line):
             result["misc_fees"].extend(parse_budget_fee_items(line, "misc"))
@@ -677,7 +723,14 @@ def build_budget(
 
     toll_cny = float(totals.get("toll_cny") or 0)
     if toll_cny:
-        items.append(budget_item("toll", "过路费", toll_cny, "来自路线数据"))
+        items.append(
+            budget_item(
+                "toll",
+                "过路费",
+                toll_cny,
+                f"全程 {compact_number_label(distance_km)} 公里 · 来自路线数据",
+            )
+        )
 
     if vehicle_type == "ev":
         if ev_kwh_price is not None and ev_kwh_per_100km is not None:
@@ -694,7 +747,7 @@ def build_budget(
                     "vehicle_energy",
                     "电车补能",
                     energy_amount,
-                    f"{round(kwh, 1)} 度 × {unit_money_label(ev_kwh_price)}/度",
+                    f"全程 {compact_number_label(distance_km)} 公里 × {compact_number_label(ev_kwh_per_100km)} 度/百公里 = {compact_number_label(kwh)} 度 × {unit_money_label(ev_kwh_price)}/度",
                     quantity=kwh,
                     unit_price=ev_kwh_price,
                 )
@@ -776,6 +829,7 @@ def build_budget(
         category_totals[category] = round(category_totals.get(category, 0) + float(item["amount_cny"]), 2)
 
     total_cny = round(sum(float(item["amount_cny"]) for item in items), 2)
+    missing_attractions = missing_attraction_candidates(data, items)
     configured = any(
         value is not None and value != []
         for value in (ev_kwh_price, ev_kwh_per_100km, hotel_nightly, meal_daily, attractions, misc_fees)
@@ -786,6 +840,7 @@ def build_budget(
         "total_cny": total_cny,
         "category_totals": category_totals,
         "items": items,
+        "missing_attractions": missing_attractions,
         "assumptions": assumptions,
         "warnings": warnings,
     }
@@ -806,8 +861,97 @@ BUDGET_CATEGORY_LABELS = {
 }
 
 
+SCENIC_SPOT_ALIASES = [
+    {
+        "name": "荔波小七孔景区",
+        "aliases": ["小七孔", "荔波小七孔", "荔波小七孔景区"],
+    },
+    {
+        "name": "中国天眼景区",
+        "aliases": ["中国天眼", "天眼", "天眼景区", "中国天眼景区"],
+    },
+    {
+        "name": "黄果树瀑布景区",
+        "aliases": ["黄果树", "黄果树瀑布", "黄果树瀑布景区"],
+    },
+    {
+        "name": "韶山景区",
+        "aliases": ["韶山", "韶山景区"],
+    },
+    {
+        "name": "凤凰古城",
+        "aliases": ["凤凰古城"],
+    },
+]
+
+
 def budget_category_label(category: str) -> str:
     return BUDGET_CATEGORY_LABELS.get(category, category)
+
+
+def normalize_place_name(value: Any) -> str:
+    return re.sub(r"[\s·・\-—_（）()]+", "", str(value or "")).lower()
+
+
+def scenic_rule_for_name(name: str) -> dict[str, Any] | None:
+    normalized = normalize_place_name(name)
+    if not normalized:
+        return None
+    for rule in SCENIC_SPOT_ALIASES:
+        names = [rule["name"], *(rule.get("aliases") or [])]
+        for alias in names:
+            alias_normalized = normalize_place_name(alias)
+            if alias_normalized and alias_normalized in normalized:
+                return rule
+    return None
+
+
+def route_scenic_candidates(data: dict[str, Any]) -> list[dict[str, Any]]:
+    candidates: dict[str, dict[str, Any]] = {}
+
+    def add(place_name: str, day_label: str) -> None:
+        rule = scenic_rule_for_name(place_name)
+        if not rule:
+            return
+        canonical = str(rule["name"])
+        candidate = candidates.setdefault(
+            canonical,
+            {
+                "name": canonical,
+                "matched_names": [],
+                "days": [],
+                "suggestion": f"可在费用预算中补充：{canonical}成人票 价格 元。",
+            },
+        )
+        if place_name not in candidate["matched_names"]:
+            candidate["matched_names"].append(place_name)
+        if day_label and day_label not in candidate["days"]:
+            candidate["days"].append(day_label)
+
+    for day in data.get("days", []):
+        day_label = str(day.get("day") or "")
+        for leg in day.get("legs") or []:
+            add(str(leg.get("from") or ""), day_label)
+            add(str(leg.get("to") or ""), day_label)
+        for note in day.get("notes") or []:
+            add(str(note), day_label)
+    return list(candidates.values())
+
+
+def missing_attraction_candidates(data: dict[str, Any], budget_items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    configured = set()
+    for item in budget_items:
+        if item.get("category") != "attraction":
+            continue
+        label = str(item.get("label") or "")
+        rule = scenic_rule_for_name(label)
+        configured.add(str(rule["name"]) if rule else label)
+
+    missing = []
+    for candidate in route_scenic_candidates(data):
+        if candidate["name"] not in configured:
+            missing.append(candidate)
+    return missing
 
 
 def flatten_route_points(data: dict[str, Any]) -> list[list[float]]:
@@ -1714,6 +1858,7 @@ def generate_html(data: dict[str, Any], path: Path, map_file: str | None = None)
     budget = data.get("budget") or {}
     budget_total = float(budget.get("total_cny") or 0)
     budget_configured = bool(budget.get("configured"))
+    missing_attractions = budget.get("missing_attractions") or []
     for item in budget.get("items") or []:
         detail = item.get("detail") or budget_category_label(str(item.get("category") or ""))
         budget_rows.append(
@@ -1730,6 +1875,32 @@ def generate_html(data: dict[str, Any], path: Path, map_file: str | None = None)
         category_tiles.append(
             f'''<div class="budget-chip"><span>{escape(budget_category_label(str(category)))}</span><strong>{escape(money_label(amount))}</strong></div>'''
         )
+    missing_attraction_rows = []
+    for candidate in missing_attractions:
+        day_text = "、".join(candidate.get("days") or [])
+        matched_text = "、".join(candidate.get("matched_names") or [])
+        detail_parts = []
+        if day_text:
+            detail_parts.append(day_text)
+        if matched_text and matched_text != candidate.get("name"):
+            detail_parts.append(f"路线写法：{matched_text}")
+        detail_parts.append("未计入总预算")
+        missing_attraction_rows.append(
+            f'''<div class="budget-missing-row">
+  <div>
+    <div class="budget-missing-name">{escape(candidate.get("name", ""))}</div>
+    <div class="budget-missing-detail">{escape(" · ".join(detail_parts))}</div>
+  </div>
+  <div class="budget-missing-action">{escape(candidate.get("suggestion", "请补充门票/景交费用。"))}</div>
+</div>'''
+        )
+    missing_attraction_panel = ""
+    if missing_attraction_rows:
+        missing_attraction_panel = f'''<div class="budget-missing">
+  <div class="budget-missing-title"><span class="ui-icon-text"><i data-lucide="circle-alert"></i><span>待补景点费用</span></span></div>
+  <div class="budget-missing-text">检测到以下景区，但费用预算里还没有配置门票或景交费用，因此没有计入总额。</div>
+  <div class="budget-missing-list">{''.join(missing_attraction_rows)}</div>
+</div>'''
     if not budget_configured:
         budget_panel = f'''<div class="activate-card">
   <span class="activate-icon"><i data-lucide="calculator"></i></span>
@@ -1741,7 +1912,8 @@ def generate_html(data: dict[str, Any], path: Path, map_file: str | None = None)
 </div>
 <div class="budget-muted">
   <span class="ui-icon-text"><i data-lucide="banknote"></i><span>当前路线过路费参考：{escape(money_label(totals.get("toll_cny")))}</span></span>
-</div>'''
+</div>
+{missing_attraction_panel}'''
     else:
         budget_panel = f'''<div class="budget-summary">
   <div>
@@ -1751,7 +1923,8 @@ def generate_html(data: dict[str, Any], path: Path, map_file: str | None = None)
   <div class="budget-note">按当前输入参数粗略计算，实际价格请以预订和现场为准。</div>
 </div>
 <div class="budget-chips">{''.join(category_tiles)}</div>
-<div class="budget-list">{''.join(budget_rows)}</div>'''
+<div class="budget-list">{''.join(budget_rows)}</div>
+{missing_attraction_panel}'''
     title = escape(data["title"])
     _sd = parse_start_date(data.get("start_date"))
     _range = trip_date_range(data["days"], _sd) if _sd else ""
@@ -1759,6 +1932,9 @@ def generate_html(data: dict[str, Any], path: Path, map_file: str | None = None)
     route_summary = " → ".join(stop["name"] for stop in ordered_stops(data["days"]))
     any_estimated = any(leg.get("estimated") for day in data["days"] for leg in day["legs"])
     toll_hint = "估算参考" if any_estimated else "地图数据"
+    overview_cost_label = "总费用" if budget_configured else "过路费"
+    overview_cost_value = budget_total if budget_configured else totals["toll_cny"]
+    overview_cost_hint = "含过路费等" if budget_configured else toll_hint
     # Interactive Leaflet map snippet (real driving route, inline data).
     leaflet_snippet = leaflet_map.build_leaflet_snippet(data)
     # Optional: link to the standalone PNG if it was generated.
@@ -1937,6 +2113,16 @@ svg {{ stroke-width: 2; }}
 .budget-label {{ font-weight: 800; font-size: 14px; word-break: break-word; }}
 .budget-detail {{ margin-top: 2px; color: var(--text2); font-size: 11px; word-break: break-word; }}
 .budget-amount {{ color: var(--accent); font-size: 16px; font-weight: 900; white-space: nowrap; }}
+.budget-missing {{ margin-top: 10px; background: #FFFFFF; border: 1px solid #E4CFC1; border-radius: 8px; padding: 14px; }}
+.budget-missing-title {{ color: #A6542C; font-size: 14px; font-weight: 900; }}
+.budget-missing-title .ui-icon-text svg {{ width: 16px; height: 16px; flex-shrink: 0; }}
+.budget-missing-text {{ margin-top: 6px; color: var(--text2); font-size: 12px; }}
+.budget-missing-list {{ display: grid; gap: 8px; margin-top: 10px; }}
+.budget-missing-row {{ display: grid; gap: 6px; border-top: 1px solid var(--line); padding-top: 9px; }}
+.budget-missing-row:first-child {{ border-top: 0; padding-top: 0; }}
+.budget-missing-name {{ font-weight: 800; font-size: 13px; color: var(--text); word-break: break-word; }}
+.budget-missing-detail, .budget-missing-action {{ color: var(--text2); font-size: 11px; word-break: break-word; }}
+.budget-missing-action {{ color: #A6542C; }}
 .activate-card {{ display: flex; align-items: flex-start; gap: 12px; }}
 .activate-icon {{ width: 34px; height: 34px; border-radius: 999px; background: color-mix(in srgb, var(--primary) 12%, white); color: var(--primary); display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }}
 .activate-icon svg {{ width: 18px; height: 18px; flex-shrink: 0; }}
@@ -1966,7 +2152,7 @@ svg {{ stroke-width: 2; }}
         <div class="overview-stats">
           <div class="stat-tile"><span class="ui-icon-text"><i data-lucide="route"></i><span>总里程</span></span><div class="value">{escape(distance_label(totals["distance_km"]))}</div><div class="hint">全程驾车</div></div>
           <div class="stat-tile"><span class="ui-icon-text"><i data-lucide="clock"></i><span>总时长</span></span><div class="value">{escape(duration_label(int(totals["duration_min"])))}</div><div class="hint">不含停留</div></div>
-          <div class="stat-tile"><span class="ui-icon-text"><i data-lucide="banknote"></i><span>过路费</span></span><div class="value">{escape(money_label(totals["toll_cny"]))}</div><div class="hint">{escape(toll_hint)}</div></div>
+          <div class="stat-tile"><span class="ui-icon-text"><i data-lucide="banknote"></i><span>{escape(overview_cost_label)}</span></span><div class="value">{escape(money_label(overview_cost_value))}</div><div class="hint">{escape(overview_cost_hint)}</div></div>
         </div>
         <div>{''.join(overview_html)}</div>
       </div>

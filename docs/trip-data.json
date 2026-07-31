@@ -7,7 +7,7 @@
           "from": "合肥",
           "to": "岳阳",
           "distance_km": 593.1,
-          "duration_min": 377,
+          "duration_min": 369,
           "toll_cny": 292.0,
           "polyline": [
             [
@@ -18158,7 +18158,7 @@
       "notes": [],
       "title": "合肥 → 岳阳",
       "distance_km": 593.1,
-      "duration_min": 377,
+      "duration_min": 369,
       "toll_cny": 292.0,
       "estimated": false
     },
@@ -18169,7 +18169,7 @@
           "from": "岳阳",
           "to": "韶山",
           "distance_km": 207.5,
-          "duration_min": 145,
+          "duration_min": 139,
           "toll_cny": 112.0,
           "polyline": [
             [
@@ -25932,7 +25932,7 @@
       "notes": [],
       "title": "岳阳 → 韶山",
       "distance_km": 207.5,
-      "duration_min": 145,
+      "duration_min": 139,
       "toll_cny": 112.0,
       "estimated": false
     },
@@ -25943,7 +25943,7 @@
           "from": "韶山",
           "to": "凤凰古城",
           "distance_km": 372.4,
-          "duration_min": 254,
+          "duration_min": 247,
           "toll_cny": 209.0,
           "polyline": [
             [
@@ -41598,7 +41598,7 @@
       "notes": [],
       "title": "韶山 → 凤凰古城",
       "distance_km": 372.4,
-      "duration_min": 254,
+      "duration_min": 247,
       "toll_cny": 209.0,
       "estimated": false
     },
@@ -41609,7 +41609,7 @@
           "from": "凤凰古城",
           "to": "荔波",
           "distance_km": 413.8,
-          "duration_min": 277,
+          "duration_min": 272,
           "toll_cny": 370.0,
           "polyline": [
             [
@@ -61516,7 +61516,7 @@
       "notes": [],
       "title": "凤凰古城 → 荔波",
       "distance_km": 413.8,
-      "duration_min": 277,
+      "duration_min": 272,
       "toll_cny": 370.0,
       "estimated": false
     },
@@ -61527,7 +61527,7 @@
           "from": "荔波",
           "to": "小七孔",
           "distance_km": 33.1,
-          "duration_min": 59,
+          "duration_min": 58,
           "toll_cny": 0.0,
           "polyline": [
             [
@@ -63966,7 +63966,7 @@
           "from": "小七孔",
           "to": "中国天眼",
           "distance_km": 197.4,
-          "duration_min": 170,
+          "duration_min": 169,
           "toll_cny": 118.0,
           "polyline": [
             [
@@ -75069,7 +75069,7 @@
           "from": "中国天眼",
           "to": "安顺",
           "distance_km": 190.8,
-          "duration_min": 169,
+          "duration_min": 168,
           "toll_cny": 89.0,
           "polyline": [
             [
@@ -84240,7 +84240,7 @@
       "notes": [],
       "title": "荔波 → 小七孔 → 中国天眼 → 安顺",
       "distance_km": 421.3,
-      "duration_min": 398,
+      "duration_min": 395,
       "toll_cny": 207.0,
       "estimated": false
     },
@@ -84251,7 +84251,7 @@
           "from": "安顺",
           "to": "黄果树",
           "distance_km": 51.1,
-          "duration_min": 56,
+          "duration_min": 52,
           "toll_cny": 20.0,
           "polyline": [
             [
@@ -87218,7 +87218,7 @@
           "from": "黄果树",
           "to": "贵阳",
           "distance_km": 130.8,
-          "duration_min": 104,
+          "duration_min": 97,
           "toll_cny": 66.0,
           "polyline": [
             [
@@ -92845,7 +92845,7 @@
       "notes": [],
       "title": "安顺 → 黄果树 → 贵阳",
       "distance_km": 181.9,
-      "duration_min": 160,
+      "duration_min": 149,
       "toll_cny": 86.0,
       "estimated": false
     },
@@ -92868,7 +92868,7 @@
           "from": "贵阳",
           "to": "茅台镇红军桥",
           "distance_km": 168.9,
-          "duration_min": 119,
+          "duration_min": 118,
           "toll_cny": 131.0,
           "polyline": [
             [
@@ -101531,7 +101531,7 @@
           "from": "茅台镇红军桥",
           "to": "遵义会议遗址",
           "distance_km": 79.7,
-          "duration_min": 80,
+          "duration_min": 75,
           "toll_cny": 63.0,
           "polyline": [
             [
@@ -106402,7 +106402,7 @@
           "from": "遵义会议遗址",
           "to": "重庆",
           "distance_km": 257.7,
-          "duration_min": 182,
+          "duration_min": 178,
           "toll_cny": 198.0,
           "polyline": [
             [
@@ -117117,7 +117117,7 @@
       "notes": [],
       "title": "贵阳 → 茅台镇红军桥 → 遵义会议遗址 → 重庆",
       "distance_km": 506.3,
-      "duration_min": 381,
+      "duration_min": 371,
       "toll_cny": 392.0,
       "estimated": false
     },
@@ -117140,7 +117140,7 @@
           "from": "重庆",
           "to": "合肥",
           "distance_km": 1220.9,
-          "duration_min": 824,
+          "duration_min": 816,
           "toll_cny": 720.0,
           "polyline": [
             [
@@ -160851,40 +160851,196 @@
       "notes": [],
       "title": "重庆 → 合肥",
       "distance_km": 1220.9,
-      "duration_min": 824,
+      "duration_min": 816,
       "toll_cny": 720.0,
       "estimated": false
     }
   ],
   "totals": {
     "distance_km": 3917.2,
-    "duration_min": 2816,
+    "duration_min": 2758,
     "toll_cny": 2388.0
   },
   "title": "Self-Drive Trip Planner Demo",
   "start_date": "2026-07-17",
   "budget": {
     "currency": "CNY",
-    "configured": false,
-    "total_cny": 2388.0,
+    "configured": true,
+    "total_cny": 9185.64,
     "category_totals": {
-      "toll": 2388.0
+      "toll": 2388.0,
+      "vehicle_energy": 1057.64,
+      "hotel": 2700.0,
+      "meal": 2000.0,
+      "attraction": 1040.0
     },
     "items": [
       {
         "category": "toll",
         "label": "过路费",
         "amount_cny": 2388.0,
-        "detail": "来自路线数据"
+        "detail": "全程 3917.2 公里 · 来自路线数据"
+      },
+      {
+        "category": "vehicle_energy",
+        "label": "电车补能",
+        "amount_cny": 1057.64,
+        "detail": "全程 3917.2 公里 × 18 度/百公里 = 705.1 度 × ¥1.5/度",
+        "quantity": 705.1,
+        "unit_price_cny": 1.5
+      },
+      {
+        "category": "hotel",
+        "label": "住宿",
+        "amount_cny": 2700.0,
+        "detail": "9 晚 × ¥300/晚",
+        "quantity": 9.0,
+        "unit_price_cny": 300.0
+      },
+      {
+        "category": "meal",
+        "label": "餐饮",
+        "amount_cny": 2000.0,
+        "detail": "10 天 × ¥200/天",
+        "quantity": 10.0,
+        "unit_price_cny": 200.0
+      },
+      {
+        "category": "attraction",
+        "label": "天眼景区",
+        "amount_cny": 180.0,
+        "detail": "门票免费；摆渡车 3 × ¥50；保险 3 × ¥10",
+        "components": [
+          {
+            "label": "门票",
+            "unit_price_cny": 0.0,
+            "quantity": 0,
+            "amount_cny": 0.0,
+            "charge": "free"
+          },
+          {
+            "label": "摆渡车",
+            "unit_price_cny": 50.0,
+            "quantity": 3,
+            "amount_cny": 150.0,
+            "charge": "per_person"
+          },
+          {
+            "label": "保险",
+            "unit_price_cny": 10.0,
+            "quantity": 3,
+            "amount_cny": 30.0,
+            "charge": "per_person"
+          }
+        ]
+      },
+      {
+        "category": "attraction",
+        "label": "凤凰古城",
+        "amount_cny": 0.0,
+        "detail": "门票免费",
+        "components": [
+          {
+            "label": "门票",
+            "unit_price_cny": 0.0,
+            "quantity": 0,
+            "amount_cny": 0.0,
+            "charge": "free"
+          }
+        ]
+      },
+      {
+        "category": "attraction",
+        "label": "黄果树瀑布",
+        "amount_cny": 320.0,
+        "detail": "成人 2 × ¥160；1.2m 以下儿童 1 人免票",
+        "adult_price_cny": 160.0,
+        "charged_adults": 2,
+        "free_children_under_1_2m": 1,
+        "half_price_children_over_1_2m": 0
+      },
+      {
+        "category": "attraction",
+        "label": "黄果树瀑布",
+        "amount_cny": 180.0,
+        "detail": "观光车 3 × ¥50；保险 3 × ¥10",
+        "components": [
+          {
+            "label": "观光车",
+            "unit_price_cny": 50.0,
+            "quantity": 3,
+            "amount_cny": 150.0,
+            "charge": "per_person"
+          },
+          {
+            "label": "保险",
+            "unit_price_cny": 10.0,
+            "quantity": 3,
+            "amount_cny": 30.0,
+            "charge": "per_person"
+          }
+        ]
+      },
+      {
+        "category": "attraction",
+        "label": "小七孔",
+        "amount_cny": 240.0,
+        "detail": "成人 2 × ¥120；1.2m 以下儿童 1 人免票",
+        "adult_price_cny": 120.0,
+        "charged_adults": 2,
+        "free_children_under_1_2m": 1,
+        "half_price_children_over_1_2m": 0
+      },
+      {
+        "category": "attraction",
+        "label": "小七孔",
+        "amount_cny": 120.0,
+        "detail": "观光车 3 × ¥40",
+        "components": [
+          {
+            "label": "观光车",
+            "unit_price_cny": 40.0,
+            "quantity": 3,
+            "amount_cny": 120.0,
+            "charge": "per_person"
+          }
+        ]
+      }
+    ],
+    "missing_attractions": [
+      {
+        "name": "韶山景区",
+        "matched_names": [
+          "韶山"
+        ],
+        "days": [
+          "D2",
+          "D3"
+        ],
+        "suggestion": "可在费用预算中补充：韶山景区成人票 价格 元。"
       }
     ],
     "assumptions": {
       "trip_days": 10,
       "distance_km": 3917.2,
       "passengers": {
-        "adults": 1,
-        "children_under_1_2m": 0,
+        "adults": 2,
+        "children_under_1_2m": 1,
         "children_over_1_2m": 0
+      },
+      "vehicle": {
+        "type": "ev",
+        "kwh_price_cny": 1.5,
+        "kwh_per_100km": 18.0,
+        "estimated_kwh": 705.1
+      },
+      "hotel": {
+        "nightly_cny": 300.0,
+        "nights": 9
+      },
+      "meal": {
+        "daily_cny": 200.0,
+        "days": 10
       }
     },
     "warnings": []

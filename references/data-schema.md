@@ -92,3 +92,4 @@ Rules:
 - Hotel nights default to `trip_days - 1`; meal days default to `trip_days`.
 - Attraction adult ticket prices are multiplied by adult count. Children below 1.2m are free; children at or above 1.2m are half price.
 - Component-style fees such as `门票不要钱，摆渡车 50 元一人，保险 10 元一人` are grouped under one attraction item. Per-person components are multiplied by all travelers.
+- Detected scenic stops with no configured attraction fee are listed in `budget.missing_attractions`. They are reminders only and must not change `budget.total_cny`.

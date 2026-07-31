@@ -117,6 +117,52 @@ python3 scripts/route_trip.py examples/simple-trip.txt --out ./trip-output --tit
 
 `GAODE_KEY` is also supported.
 
+Copy-ready full input example:
+
+```text
+我们是两大一小（低于 1.2m），
+
+开电车，电价 1.5 元/度，百公里综合电耗 18 度；
+酒店每晚 300 元，
+餐费每天 200 元；
+景区：韶山景区、黄果树瀑布、小七孔，天眼景区（门票不要钱，摆渡车 50 元一人，保险 10 元一人），凤凰古城免费。
+已确认景区价格：黄果树瀑布成人票 160 元，观光车 50 元一人，保险 10 元一人；小七孔成人票 120 元，观光车 40 元一人。
+
+D1
+合肥 到 岳阳
+D2
+岳阳 到 韶山
+D3
+韶山 到 凤凰古城
+D4
+凤凰古城 到 荔波
+D5
+荔波 到 小七孔
+小七孔 到 中国天眼
+中国天眼 到 安顺
+
+D6
+安顺 到 黄果树
+黄果树 到 贵阳
+D7
+贵阳市区
+D8
+贵阳 到 茅台镇红军桥
+茅台镇红军桥 到 遵义会议遗址
+遵义会议遗址 到 重庆
+D9
+重庆市区
+D10
+重庆 回 合肥
+```
+
+Replace the traveler count, EV price/consumption, hotel, meals, scenic areas,
+and `D1`/`D2` route lines with your own trip. The CLI does not look up ticket
+prices by itself; it only parses the prices you include in the text. When using
+an agent, you can write only the scenic names first and ask the agent to look up
+official/authoritative prices, then add them under `已确认景区价格：` before
+running the generator.
+
 Run with a rough budget estimate. Append a `费用预算：` section to the itinerary:
 
 ```text
@@ -158,6 +204,10 @@ For attraction tickets, adults use full price, children below 1.2m are free, and
 children at or above 1.2m use half adult price.
 For components such as shuttle bus or insurance marked as `一人`/`每人`, the
 calculator multiplies the fee by all travelers.
+The generator also detects known scenic stops such as `小七孔`, `黄果树`,
+`韶山`, and `中国天眼`. If a detected scenic area has no configured ticket or
+transport fee, the `费用` tab shows it under `待补景点费用`; it is not included
+in the total until you provide a price.
 If no budget inputs are provided, the generated `费用` tab shows an activation
 reminder instead of pretending to calculate a total trip budget.
 

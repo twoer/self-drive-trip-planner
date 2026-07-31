@@ -105,6 +105,7 @@ Budget rules:
 - Children below 1.2m are free by default.
 - Children at or above 1.2m use half adult price by default.
 - Per-person fee components such as shuttle bus, sightseeing bus, and insurance are multiplied by all travelers.
+- Detect known scenic stops such as `小七孔`, `黄果树`, `韶山`, and `中国天眼`; when a scenic stop has no configured ticket/component fee, list it as missing in `budget.missing_attractions` and the `费用` tab. Do not include missing scenic fees in the total.
 - If the user provides only attraction names without prices, browse current official or authoritative pages for ticket/component prices, then add the discovered prices to the budget input. If no reliable source is found, leave the item out of the total and report it as "待核实"; do not invent prices.
 
 Read `references/data-schema.md` when changing the parser, consuming user-provided JSON, or explaining the normalized schema. Read `references/output-contract.md` when changing output files, `manifest.json`, modes, or final reporting behavior.
