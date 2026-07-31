@@ -127,6 +127,9 @@ D3
             self.assertIn("含过路费等", html)
             self.assertIn("¥1.5/度", html)
             self.assertIn("摆渡车 3 × ¥50", html)
+            self.assertEqual(html.count('<div class="budget-label">黄果树瀑布</div>'), 1)
+            self.assertEqual(html.count('<div class="budget-label">小七孔</div>'), 1)
+            self.assertNotIn("budget-chips", html)
             self.assertNotIn("示例：--vehicle-type", html)
             self.assertIn("data-tab=\"budget\"", html)
             self.assertTrue(data["budget"]["configured"])
@@ -226,6 +229,7 @@ D2
             self.assertIn("= ", energy_item["detail"])
             self.assertIn("费用预估", html)
             self.assertIn("小七孔", html)
+            self.assertNotIn("budget-chips", html)
 
     def test_natural_language_budget_derives_days_and_child_ticket_rules(self):
         route_text, _budget_text = self.route_trip.split_budget_section(

@@ -7,7 +7,7 @@
           "from": "合肥",
           "to": "岳阳",
           "distance_km": 593.1,
-          "duration_min": 369,
+          "duration_min": 371,
           "toll_cny": 292.0,
           "polyline": [
             [
@@ -18158,7 +18158,7 @@
       "notes": [],
       "title": "合肥 → 岳阳",
       "distance_km": 593.1,
-      "duration_min": 369,
+      "duration_min": 371,
       "toll_cny": 292.0,
       "estimated": false
     },
@@ -18169,7 +18169,7 @@
           "from": "岳阳",
           "to": "韶山",
           "distance_km": 207.5,
-          "duration_min": 139,
+          "duration_min": 140,
           "toll_cny": 112.0,
           "polyline": [
             [
@@ -25932,7 +25932,7 @@
       "notes": [],
       "title": "岳阳 → 韶山",
       "distance_km": 207.5,
-      "duration_min": 139,
+      "duration_min": 140,
       "toll_cny": 112.0,
       "estimated": false
     },
@@ -41609,7 +41609,7 @@
           "from": "凤凰古城",
           "to": "荔波",
           "distance_km": 413.8,
-          "duration_min": 272,
+          "duration_min": 273,
           "toll_cny": 370.0,
           "polyline": [
             [
@@ -61516,7 +61516,7 @@
       "notes": [],
       "title": "凤凰古城 → 荔波",
       "distance_km": 413.8,
-      "duration_min": 272,
+      "duration_min": 273,
       "toll_cny": 370.0,
       "estimated": false
     },
@@ -61527,7 +61527,7 @@
           "from": "荔波",
           "to": "小七孔",
           "distance_km": 33.1,
-          "duration_min": 58,
+          "duration_min": 57,
           "toll_cny": 0.0,
           "polyline": [
             [
@@ -75069,7 +75069,7 @@
           "from": "中国天眼",
           "to": "安顺",
           "distance_km": 190.8,
-          "duration_min": 168,
+          "duration_min": 167,
           "toll_cny": 89.0,
           "polyline": [
             [
@@ -84240,7 +84240,7 @@
       "notes": [],
       "title": "荔波 → 小七孔 → 中国天眼 → 安顺",
       "distance_km": 421.3,
-      "duration_min": 395,
+      "duration_min": 393,
       "toll_cny": 207.0,
       "estimated": false
     },
@@ -84251,7 +84251,7 @@
           "from": "安顺",
           "to": "黄果树",
           "distance_km": 51.1,
-          "duration_min": 52,
+          "duration_min": 51,
           "toll_cny": 20.0,
           "polyline": [
             [
@@ -87218,7 +87218,7 @@
           "from": "黄果树",
           "to": "贵阳",
           "distance_km": 130.8,
-          "duration_min": 97,
+          "duration_min": 96,
           "toll_cny": 66.0,
           "polyline": [
             [
@@ -92845,7 +92845,7 @@
       "notes": [],
       "title": "安顺 → 黄果树 → 贵阳",
       "distance_km": 181.9,
-      "duration_min": 149,
+      "duration_min": 147,
       "toll_cny": 86.0,
       "estimated": false
     },
@@ -92868,7 +92868,7 @@
           "from": "贵阳",
           "to": "茅台镇红军桥",
           "distance_km": 168.9,
-          "duration_min": 118,
+          "duration_min": 119,
           "toll_cny": 131.0,
           "polyline": [
             [
@@ -106402,7 +106402,7 @@
           "from": "遵义会议遗址",
           "to": "重庆",
           "distance_km": 257.7,
-          "duration_min": 178,
+          "duration_min": 179,
           "toll_cny": 198.0,
           "polyline": [
             [
@@ -117117,7 +117117,7 @@
       "notes": [],
       "title": "贵阳 → 茅台镇红军桥 → 遵义会议遗址 → 重庆",
       "distance_km": 506.3,
-      "duration_min": 371,
+      "duration_min": 373,
       "toll_cny": 392.0,
       "estimated": false
     },
@@ -117140,7 +117140,7 @@
           "from": "重庆",
           "to": "合肥",
           "distance_km": 1220.9,
-          "duration_min": 816,
+          "duration_min": 817,
           "toll_cny": 720.0,
           "polyline": [
             [
@@ -160851,14 +160851,14 @@
       "notes": [],
       "title": "重庆 → 合肥",
       "distance_km": 1220.9,
-      "duration_min": 816,
+      "duration_min": 817,
       "toll_cny": 720.0,
       "estimated": false
     }
   ],
   "totals": {
     "distance_km": 3917.2,
-    "duration_min": 2758,
+    "duration_min": 2761,
     "toll_cny": 2388.0
   },
   "title": "Self-Drive Trip Planner Demo",

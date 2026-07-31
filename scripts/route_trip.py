@@ -1859,7 +1859,27 @@ def generate_html(data: dict[str, Any], path: Path, map_file: str | None = None)
     budget_total = float(budget.get("total_cny") or 0)
     budget_configured = bool(budget.get("configured"))
     missing_attractions = budget.get("missing_attractions") or []
+    rendered_budget_items: list[dict[str, Any]] = []
+    rendered_budget_index: dict[tuple[str, str], dict[str, Any]] = {}
     for item in budget.get("items") or []:
+        category = str(item.get("category") or "")
+        label = str(item.get("label") or "")
+        if category == "attraction":
+            key = (category, label)
+            if key in rendered_budget_index:
+                existing = rendered_budget_index[key]
+                existing["amount_cny"] = round(float(existing.get("amount_cny") or 0) + float(item.get("amount_cny") or 0), 2)
+                detail = str(item.get("detail") or "").strip()
+                if detail:
+                    existing["detail"] = "；".join([part for part in [existing.get("detail"), detail] if part])
+                continue
+            copy_item = dict(item)
+            rendered_budget_index[key] = copy_item
+            rendered_budget_items.append(copy_item)
+            continue
+        rendered_budget_items.append(item)
+
+    for item in rendered_budget_items:
         detail = item.get("detail") or budget_category_label(str(item.get("category") or ""))
         budget_rows.append(
             f'''<div class="budget-row">
@@ -1869,11 +1889,6 @@ def generate_html(data: dict[str, Any], path: Path, map_file: str | None = None)
   </div>
   <div class="budget-amount">{escape(money_label(item.get("amount_cny")))}</div>
 </div>'''
-        )
-    category_tiles = []
-    for category, amount in (budget.get("category_totals") or {}).items():
-        category_tiles.append(
-            f'''<div class="budget-chip"><span>{escape(budget_category_label(str(category)))}</span><strong>{escape(money_label(amount))}</strong></div>'''
         )
     missing_attraction_rows = []
     for candidate in missing_attractions:
@@ -1922,7 +1937,6 @@ def generate_html(data: dict[str, Any], path: Path, map_file: str | None = None)
   </div>
   <div class="budget-note">按当前输入参数粗略计算，实际价格请以预订和现场为准。</div>
 </div>
-<div class="budget-chips">{''.join(category_tiles)}</div>
 <div class="budget-list">{''.join(budget_rows)}</div>
 {missing_attraction_panel}'''
     title = escape(data["title"])
@@ -2104,9 +2118,6 @@ svg {{ stroke-width: 2; }}
 .budget-kicker {{ color: var(--text2); font-size: 12px; }}
 .budget-total {{ margin-top: 3px; color: var(--primary); font-size: 30px; font-weight: 900; line-height: 1.1; }}
 .budget-note {{ max-width: 210px; color: var(--text2); font-size: 11px; text-align: right; }}
-.budget-chips {{ display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px; }}
-.budget-chip {{ display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; background: #FFFFFF; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; color: var(--text2); font-size: 12px; }}
-.budget-chip strong {{ color: var(--accent); font-size: 13px; white-space: nowrap; }}
 .budget-list {{ display: grid; gap: 8px; }}
 .budget-row {{ display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; }}
 .budget-left {{ min-width: 0; }}
