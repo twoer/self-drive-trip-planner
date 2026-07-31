@@ -27,6 +27,12 @@ FORBIDDEN_PARTS = {
     "trip-output",
 }
 
+FORBIDDEN_FILENAMES = {
+    "check_plugin_package.py",
+    "install_plugin_local.py",
+    "package_plugin.py",
+}
+
 
 def fail(message: str) -> None:
     print(f"ERROR: {message}", file=sys.stderr)
@@ -73,6 +79,8 @@ def main() -> int:
     for path in plugin_dir.rglob("*"):
         if any(part in FORBIDDEN_PARTS for part in path.relative_to(plugin_dir).parts):
             fail(f"forbidden generated/local path in package: {path}")
+        if path.name in FORBIDDEN_FILENAMES:
+            fail(f"forbidden repository helper in package: {path}")
 
     print(f"Plugin package checks passed: {plugin_dir}")
     return 0

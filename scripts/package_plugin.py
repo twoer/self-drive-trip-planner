@@ -82,7 +82,14 @@ SKILL_DIRS = [
 
 
 def copy_tree(src: Path, dst: Path) -> None:
-    ignore = shutil.ignore_patterns("__pycache__", "*.pyc", ".DS_Store", "package_plugin.py", "check_plugin_package.py")
+    ignore = shutil.ignore_patterns(
+        "__pycache__",
+        "*.pyc",
+        ".DS_Store",
+        "package_plugin.py",
+        "check_plugin_package.py",
+        "install_plugin_local.py",
+    )
     shutil.copytree(src, dst, ignore=ignore)
 
 

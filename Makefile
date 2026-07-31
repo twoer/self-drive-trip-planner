@@ -6,7 +6,7 @@ CODEX_SKILLS_DIR ?= $(HOME)/.codex/skills
 PLUGIN_CREATOR_DIR ?= $(HOME)/.codex/skills/.system/plugin-creator
 PLUGIN_VALIDATOR ?= $(PLUGIN_CREATOR_DIR)/scripts/validate_plugin.py
 
-.PHONY: install setup demo install-skill test demo-estimate demo-api demo-data demo-batch pages-demo package-plugin check-plugin-package validate-plugin
+.PHONY: install setup demo install-skill install-plugin test demo-estimate demo-api demo-data demo-batch pages-demo package-plugin check-plugin-package validate-plugin
 
 install:
 	$(PYTHON) -m pip install -r requirements.txt
@@ -19,6 +19,9 @@ demo:
 
 install-skill:
 	$(PYTHON) scripts/install_skill.py --dest $(CODEX_SKILLS_DIR)
+
+install-plugin:
+	$(PYTHON) scripts/install_plugin_local.py
 
 test:
 	$(PYTHON) -m py_compile scripts/route_trip.py scripts/leaflet_map.py

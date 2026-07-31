@@ -51,6 +51,17 @@ Download the latest packaged plugin from GitHub Releases:
 
 [self-drive-trip-planner-plugin.zip](https://github.com/twoer/self-drive-trip-planner/releases/download/v0.1.0/self-drive-trip-planner-plugin.zip)
 
+Install this repository into your personal Codex plugin marketplace:
+
+```bash
+make install-plugin
+```
+
+This builds the plugin, copies it to `~/plugins/self-drive-trip-planner`, updates
+`~/.agents/plugins/marketplace.json`, and runs
+`codex plugin add self-drive-trip-planner@personal`. Start a new Codex task after
+installing so the newly installed skill list is refreshed.
+
 Build a clean skills-only Codex plugin package:
 
 ```bash
