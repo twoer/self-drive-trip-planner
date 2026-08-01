@@ -42,7 +42,7 @@
         "label": "电车补能",
         "amount_cny": 1057.64,
         "detail": "全程 3917.2 公里 × 18 度/百公里 = 705.1 度 × ¥1.5/度",
-        "quantity": 705.1,
+        "quantity": 705.0959999999999,
         "unit_price_cny": 1.5
       },
       {
@@ -203,7 +203,7 @@
   },
   "totals": {
     "distance_km": 3917.2,
-    "duration_min": 2767,
+    "duration_min": 2739,
     "toll_cny": 2388.0
   },
   "counts": {

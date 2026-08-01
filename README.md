@@ -87,6 +87,12 @@ make install-plugin
 
 安装后请新开一个 Codex task，让 skill 列表刷新。
 
+安装后可复查本地插件目录和 Codex cache 是否已刷新到当前包：
+
+```bash
+make check-installed-plugin
+```
+
 构建可分发的插件包：
 
 ```bash
@@ -124,6 +130,12 @@ make install
 
 ```bash
 python3 scripts/route_trip.py examples/simple-trip.txt --out ./trip-output --title "Demo 自驾游" --mode estimate
+```
+
+CLI 成功退出前会自动校验生成产物是否满足输出契约。你也可以对已有目录手动复查：
+
+```bash
+python3 scripts/verify_outputs.py ./trip-output
 ```
 
 要求必须使用高德真实路线数据：
@@ -181,6 +193,7 @@ D10
 - 把电价、百公里电耗、酒店、餐费改成你的预算
 - 把景区名称和已确认价格改成你的行程
 - 把 `D1`、`D2` 路线换成自己的每日路线
+- 也可以写成 `D1：合肥 到 岳阳`、`Day2 岳阳 到 韶山`、`第1天：合肥 到 岳阳` 或 `第二天 岳阳 到 韶山`
 
 注意：CLI 默认不会自动联网查门票价格，它只解析你输入文本里的价格。如果你用 Codex / Agent，可以先只写景区名，让 Agent 查询官方或权威来源，再把查到的价格补到 `已确认景区价格：` 后面再运行生成。
 
@@ -209,6 +222,7 @@ D10
 - 低于 1.2m 儿童默认免票
 - 高于或等于 1.2m 儿童默认半价
 - `摆渡车 50 元一人`、`保险 10 元一人` 会按总人数计算
+- `300-400 元`、`电价 1.2-1.5 元/度`、`成人票 100-120 元` 这类区间不会计入总费用，会在 `manifest.warnings` 中提示你补一个确定金额
 - 识别到 `小七孔`、`黄果树`、`韶山`、`中国天眼` 等景区但没有配置价格时，会在费用页显示 `待补景点费用`
 - 待补景点费用只做提醒，不会计入总费用
 - 如果完全没有费用输入，费用 tab 会显示“费用计算未启用”的激活提醒
@@ -288,10 +302,16 @@ D10
 支持的路线连接词：
 
 - `到`
+- `到达`
+- `前往`
+- `去往`
+- `至`
 - `回`
+- `回到`
 - `返回`
 - `->`
 - `→`
+- 带空格的横线，例如 `合肥 - 岳阳`
 
 没有路线连接词的行，例如 `贵阳市区`，会被当作当天停留备注。它会出现在 JSON 和 HTML 里，但不会计入驾车里程、时长、过路费和路线地图。
 
@@ -306,7 +326,7 @@ python3 -m pip install playwright
 python3 -m playwright install chromium
 ```
 
-没有 Playwright 时，PNG 会跳过生成，交互式 HTML 地图不受影响。
+没有 Playwright 时，会生成 `route-map.svg` 作为静态 fallback，交互式 HTML 地图不受影响。
 
 ## API Key 和安全说明
 
@@ -328,8 +348,8 @@ python3 -m playwright install chromium
 
 1. 把用户行程文本传给 `scripts/route_trip.py`
 2. 明确选择 `--mode`
-3. 读取 `manifest.json`
-4. 检查 `manifest.files` 里的文件是否存在
+3. 确认 CLI 输出 `Verified: output contract`
+4. 读取 `manifest.json`
 5. 向用户报告 `manifest.data_source`、`manifest.totals` 和 `manifest.warnings`
 
 GitHub Pages demo 使用：
@@ -345,6 +365,23 @@ make pages-demo
 - `docs/manifest.json`
 - `docs/route-map.png`
 - `docs/.nojekyll`
+
+## 架构说明
+
+核心模块边界见 [references/architecture.md](references/architecture.md)：
+
+- `scripts/route_trip.py`：CLI 参数和历史兼容导出
+- `scripts/itinerary_parser.py`：`D1` / `第1天`、`A 到 B`、停留笔记和多站连线解析
+- `scripts/trip_pipeline.py`：mode/key 解析、预算合并、路线生成、文件输出和契约校验
+- `scripts/routing.py`：Amap provider、估算 fallback、可选路由缓存和路线汇总
+- `scripts/budget.py`：自然语言预算解析、票价规则和费用计算
+- `scripts/manifest_contract.py`：`manifest.json`、warnings 和准确模式检查
+- `scripts/leaflet_map.py`：Leaflet 地图数据、交互地图和 PNG 截图
+- `scripts/html_renderer.py`：移动端行程 HTML 渲染
+- `scripts/output_assets.py`：SVG fallback、静态路线图和 PDF 导出
+- `scripts/output_reporter.py`：CLI/demo 输出摘要和错误报告
+- `scripts/verify_outputs.py`：生成产物契约校验
+- `scripts/skill_layout.py`：安装和打包时共享的 skill 文件布局
 
 ## 开发命令
 
@@ -372,7 +409,7 @@ make demo-api
 make pages-demo
 ```
 
-生成 20 条高密度随机 demo，用于 UI 压测：
+生成 20 条、覆盖 3–25 天的高密度随机 demo，用于 UI 和输出契约压测：
 
 ```bash
 make demo-batch

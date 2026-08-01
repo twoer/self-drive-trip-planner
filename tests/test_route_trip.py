@@ -1,4 +1,5 @@
 import importlib.util
+import argparse
 import json
 import subprocess
 import sys
@@ -40,6 +41,118 @@ D4
         self.assertEqual(days[2]["legs"], [{"from": "凤凰古城", "to": "合肥"}])
         self.assertEqual(days[3]["notes"], ["合肥市区"])
 
+    def test_budget_cli_parsers_reject_non_finite_amounts(self):
+        for value in ("nan", "inf", "-inf"):
+            with self.subTest(value=value):
+                with self.assertRaises(argparse.ArgumentTypeError):
+                    self.route_trip.parse_non_negative_float(value)
+                with self.assertRaises(argparse.ArgumentTypeError):
+                    self.route_trip.parse_named_amount(f"费用={value}")
+
+    def test_generated_html_keeps_user_text_out_of_script_markup(self):
+        malicious = '__LEAFLET_MAP__ </script><img src=x onerror="alert(1)">'
+        data = self.route_trip.enrich(
+            self.route_trip.parse_itinerary("D1\n合肥 到 岳阳\n"),
+            use_api=False,
+        )
+        data["title"] = malicious
+        data["days"][0]["title"] = malicious
+
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp) / "trip.html"
+            self.route_trip.generate_html(data, output)
+            generated = output.read_text(encoding="utf-8")
+
+        self.assertEqual(generated.count('id="trip-map"'), 1)
+        self.assertIn("__LEAFLET_MAP__", generated)
+        self.assertNotIn("</script><img", generated)
+        self.assertIn("\\u003c/script\\u003e", generated)
+
+    def test_parse_common_chinese_route_connectors(self):
+        days = self.route_trip.parse_itinerary("""D1
+合肥 到达 岳阳
+D2
+岳阳 前往 韶山 去往 凤凰古城
+D3
+凤凰古城 至 荔波
+D4
+荔波 - 小七孔
+D5
+中国天眼 回到 合肥
+""")
+
+        self.assertEqual(days[0]["legs"], [{"from": "合肥", "to": "岳阳"}])
+        self.assertEqual(days[1]["legs"], [{"from": "岳阳", "to": "韶山"}, {"from": "韶山", "to": "凤凰古城"}])
+        self.assertEqual(days[2]["legs"], [{"from": "凤凰古城", "to": "荔波"}])
+        self.assertEqual(days[3]["legs"], [{"from": "荔波", "to": "小七孔"}])
+        self.assertEqual(days[4]["legs"], [{"from": "中国天眼", "to": "合肥"}])
+
+    def test_parse_day_label_with_inline_route_or_note(self):
+        days = self.route_trip.parse_itinerary("""D1：合肥 到 岳阳
+Day2 岳阳 到 韶山
+D3：韶山市区
+D4-韶山 返回 合肥
+""")
+
+        self.assertEqual([day["day"] for day in days], ["D1", "D2", "D3", "D4"])
+        self.assertEqual(days[0]["legs"], [{"from": "合肥", "to": "岳阳"}])
+        self.assertEqual(days[1]["legs"], [{"from": "岳阳", "to": "韶山"}])
+        self.assertEqual(days[2]["notes"], ["韶山市区"])
+        self.assertEqual(days[3]["legs"], [{"from": "韶山", "to": "合肥"}])
+
+    def test_parse_chinese_day_label_with_inline_route_or_note(self):
+        days = self.route_trip.parse_itinerary("""第1天：合肥 到 岳阳
+第二天 岳阳 到 韶山
+第3天：韶山市区
+第十天 韶山 返回 合肥
+""")
+
+        self.assertEqual([day["day"] for day in days], ["D1", "D2", "D3", "D10"])
+        self.assertEqual(days[0]["legs"], [{"from": "合肥", "to": "岳阳"}])
+        self.assertEqual(days[1]["legs"], [{"from": "岳阳", "to": "韶山"}])
+        self.assertEqual(days[2]["notes"], ["韶山市区"])
+        self.assertEqual(days[3]["legs"], [{"from": "韶山", "to": "合肥"}])
+
+    def test_parse_leading_notes_avoid_explicit_day_label_collision(self):
+        days = self.route_trip.parse_itinerary("""出发前检查车辆
+D1
+合肥 到 岳阳
+""")
+
+        self.assertEqual([day["day"] for day in days], ["D1"])
+        self.assertEqual(days[0]["notes"], ["出发前检查车辆"])
+        self.assertEqual(days[0]["legs"], [{"from": "合肥", "to": "岳阳"}])
+
+    def test_parse_leading_route_avoid_explicit_day_label_collision(self):
+        days = self.route_trip.parse_itinerary("""合肥 到 岳阳
+D1
+岳阳 到 韶山
+""")
+
+        self.assertEqual([day["day"] for day in days], ["D2", "D1"])
+        self.assertEqual(days[0]["legs"], [{"from": "合肥", "to": "岳阳"}])
+        self.assertEqual(days[1]["legs"], [{"from": "岳阳", "to": "韶山"}])
+
+    def test_parse_rejects_zero_day_label(self):
+        with self.assertRaisesRegex(ValueError, "Day numbers must start at 1"):
+            self.route_trip.parse_itinerary("""D0
+合肥 到 岳阳
+""")
+
+    def test_parse_rejects_zero_day_label_with_inline_route(self):
+        with self.assertRaisesRegex(ValueError, "Day numbers must start at 1"):
+            self.route_trip.parse_itinerary("D0：合肥 到 岳阳\n")
+
+    def test_parse_rejects_zero_chinese_day_label(self):
+        with self.assertRaisesRegex(ValueError, "Day numbers must start at 1"):
+            self.route_trip.parse_itinerary("第0天：合肥 到 岳阳\n")
+
+    def test_parse_rejects_duplicate_explicit_day_label(self):
+        with self.assertRaisesRegex(ValueError, "Duplicate day label: D1"):
+            self.route_trip.parse_itinerary("""D1：合肥 到 岳阳
+第一天 岳阳 到 韶山
+""")
+
     def test_enrich_keeps_non_driving_days(self):
         days = self.route_trip.parse_itinerary("""D1
 合肥 到 岳阳
@@ -57,7 +170,7 @@ D3
         self.assertEqual(stay_day["duration_min"], 0)
         self.assertEqual(stay_day["toll_cny"], 0)
 
-    def test_overview_markers_merge_loop_and_limit_to_ten(self):
+    def test_leaflet_map_data_merges_loop_stops(self):
         text = """D1
 合肥 到 岳阳 到 韶山 到 凤凰古城
 D2
@@ -66,13 +179,13 @@ D3
 贵阳 到 茅台镇 到 遵义 到 荆州 到 合肥
 """
         data = self.route_trip.enrich(self.route_trip.parse_itinerary(text), use_api=False)
-        map_stops, omitted = self.route_trip.overview_marker_stops(data)
+        map_data = self.route_trip.leaflet_map.build_map_data(data)
+        stops = map_data["stops"]
 
-        self.assertLessEqual(len(map_stops), 10)
-        self.assertGreater(len(omitted), 0)
-        self.assertEqual(map_stops[0]["name"], "合肥")
-        self.assertEqual(map_stops[0]["role"], "起点/终点")
-        self.assertEqual(len(self.route_trip.static_map_markers(map_stops).split("|")), len(map_stops))
+        self.assertEqual(stops[0]["name"], "合肥")
+        self.assertEqual(stops[0]["day"], "D1/D3")
+        self.assertEqual(len([stop for stop in stops if stop["name"] == "合肥"]), 1)
+        self.assertTrue(all(stop.get("lng") and stop.get("lat") for stop in stops))
 
     def test_cli_no_api_generates_expected_files(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -94,11 +207,12 @@ D3
             )
 
             self.assertIn("Wrote:", result.stdout)
+            self.assertIn("Verified: output contract", result.stdout)
             self.assertTrue((output_dir / "trip.html").is_file())
             self.assertTrue((output_dir / "trip-data.json").is_file())
             self.assertTrue((output_dir / "manifest.json").is_file())
 
-            # The static map is PNG when Playwright is available, otherwise SVG.
+            # The shareable route map is PNG when Playwright is available, otherwise SVG.
             data = json.loads((output_dir / "trip-data.json").read_text(encoding="utf-8"))
             manifest = json.loads((output_dir / "manifest.json").read_text(encoding="utf-8"))
             map_file = data["map"]["file"]
@@ -320,6 +434,120 @@ D2
         self.assertEqual(parsed["passengers"]["children_under_1_2m"], 1)
         self.assertEqual(parsed["hotel_nightly"], 300.0)
 
+    def test_budget_parser_accepts_approximate_amounts(self):
+        parsed = self.route_trip.parse_budget_text("费用预算：餐费每天约100元，酒店一晚300元左右，电价约人民币1.5元/度，百公里电耗16度左右。")
+
+        self.assertEqual(parsed["meal_daily"], 100.0)
+        self.assertEqual(parsed["hotel_nightly"], 300.0)
+        self.assertEqual(parsed["ev_kwh_price"], 1.5)
+        self.assertEqual(parsed["ev_kwh_per_100km"], 16.0)
+        self.assertEqual(parsed["warnings"], [])
+
+    def test_build_budget_deduplicates_external_and_derived_warnings(self):
+        warning = "Vehicle is EV but --ev-kwh-price or --ev-kwh-per-100km is missing; energy cost skipped."
+        data = {
+            "days": [{"day": "D1", "legs": []}],
+            "totals": {"distance_km": 0.0, "duration_min": 0, "toll_cny": 0.0},
+        }
+
+        budget = self.route_trip.build_budget(
+            data,
+            vehicle_type="ev",
+            warnings=[warning, warning, "  Check price  "],
+        )
+
+        self.assertEqual(budget["warnings"], [warning, "Check price"])
+
+    def test_budget_range_warning_is_persisted_to_manifest(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            input_path = Path(tmp) / "input.txt"
+            output_dir = Path(tmp) / "trip-output"
+            input_path.write_text("""D1
+合肥 到 岳阳
+D2
+岳阳 回 合肥
+
+费用预算：
+酒店每晚 300-400 元，餐费每天 100 元。
+""", encoding="utf-8")
+
+            subprocess.run(
+                [
+                    sys.executable,
+                    str(SCRIPT),
+                    str(input_path),
+                    "--out",
+                    str(output_dir),
+                    "--mode",
+                    "data-only",
+                ],
+                check=True,
+                text=True,
+                capture_output=True,
+            )
+
+            data = json.loads((output_dir / "trip-data.json").read_text(encoding="utf-8"))
+            manifest = json.loads((output_dir / "manifest.json").read_text(encoding="utf-8"))
+            warning = "Hotel budget range was provided; use a single nightly amount or --hotel-nightly for totals."
+
+            self.assertIn(warning, data["budget"]["warnings"])
+            self.assertIn(warning, manifest["warnings"])
+            self.assertNotIn("hotel", data["budget"]["category_totals"])
+            self.assertEqual(data["budget"]["category_totals"]["meal"], 200.0)
+
+    def test_budget_parser_rejects_ev_and_attraction_ranges(self):
+        parsed = self.route_trip.parse_budget_text(
+            "费用预算：开电车，电价 1.2-1.5 元/度，百公里电耗 16-18 度左右。景点门票：小七孔成人票 100-120元左右，摆渡车 40-50 元一人。其他费用：停车费 20-30 元，杂费 10 元。"
+        )
+
+        self.assertEqual(parsed["attractions"], [])
+        self.assertEqual(parsed["misc_fees"], [{"name": "杂费", "amount_cny": 10.0}])
+        self.assertNotIn("ev_kwh_price", parsed)
+        self.assertNotIn("ev_kwh_per_100km", parsed)
+        self.assertIn("EV electricity price range was provided; use a single CNY/kWh amount or --ev-kwh-price for totals.", parsed["warnings"])
+        self.assertIn("EV consumption range was provided; use a single kWh/100km amount or --ev-kwh-per-100km for totals.", parsed["warnings"])
+        self.assertIn("Attraction or component fee range was provided; use a single amount or --attraction for totals.", parsed["warnings"])
+        self.assertIn("Misc fee range was provided; use a single amount or --misc-fee for totals.", parsed["warnings"])
+
+    def test_budget_range_warnings_for_ev_and_attractions_reach_manifest(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            input_path = Path(tmp) / "input.txt"
+            output_dir = Path(tmp) / "trip-output"
+            input_path.write_text("""D1
+荔波 到 小七孔
+
+费用预算：
+开电车，电价 1.2-1.5 元/度，百公里电耗 16-18 度。
+景点门票：小七孔成人票 100-120 元。
+其他费用：停车费 20-30 元。
+""", encoding="utf-8")
+
+            subprocess.run(
+                [
+                    sys.executable,
+                    str(SCRIPT),
+                    str(input_path),
+                    "--out",
+                    str(output_dir),
+                    "--mode",
+                    "data-only",
+                ],
+                check=True,
+                text=True,
+                capture_output=True,
+            )
+
+            data = json.loads((output_dir / "trip-data.json").read_text(encoding="utf-8"))
+            manifest = json.loads((output_dir / "manifest.json").read_text(encoding="utf-8"))
+
+            self.assertNotIn("vehicle_energy", data["budget"]["category_totals"])
+            self.assertNotIn("attraction", data["budget"]["category_totals"])
+            self.assertTrue(any("EV electricity price range" in warning for warning in manifest["warnings"]))
+            self.assertTrue(any("EV consumption range" in warning for warning in manifest["warnings"]))
+            self.assertTrue(any("Attraction or component fee range" in warning for warning in manifest["warnings"]))
+            self.assertTrue(any("Misc fee range" in warning for warning in manifest["warnings"]))
+            self.assertTrue(any("Vehicle is EV" in warning for warning in manifest["warnings"]))
+
     def test_leading_budget_text_supports_scenic_list_and_combined_ev_consumption(self):
         itinerary_text, budget_text = self.route_trip.split_budget_section("""我们是两大一小（低于 1.2m），
 开电车，电价 1.5 元/度，百公里综合电耗 18 度；
@@ -340,6 +568,84 @@ D2
         self.assertEqual(parsed["ev_kwh_per_100km"], 18.0)
         self.assertEqual(parsed["meal_daily"], 200.0)
         self.assertEqual([item["name"] for item in parsed["attractions"]], ["天眼景区", "凤凰古城", "黄果树瀑布"])
+
+    def test_leading_budget_text_splits_before_inline_day_label(self):
+        itinerary_text, budget_text = self.route_trip.split_budget_section("""两大一小（低于 1.2m），酒店每晚 300 元。
+
+D1：合肥 到 岳阳
+D2：岳阳 到 韶山
+""")
+        days = self.route_trip.parse_itinerary(itinerary_text)
+        parsed = self.route_trip.parse_budget_text(budget_text)
+
+        self.assertEqual([day["day"] for day in days], ["D1", "D2"])
+        self.assertEqual(days[0]["legs"], [{"from": "合肥", "to": "岳阳"}])
+        self.assertEqual(parsed["hotel_nightly"], 300.0)
+
+    def test_leading_budget_heading_splits_before_day_label(self):
+        itinerary_text, budget_text = self.route_trip.split_budget_section("""费用预算：
+两大一小（低于 1.2m），酒店每晚 300 元。
+
+D1
+合肥 到 岳阳
+D2
+岳阳 到 韶山
+""")
+        days = self.route_trip.parse_itinerary(itinerary_text)
+        parsed = self.route_trip.parse_budget_text(budget_text)
+
+        self.assertEqual([day["day"] for day in days], ["D1", "D2"])
+        self.assertIn("费用预算", budget_text)
+        self.assertEqual(parsed["hotel_nightly"], 300.0)
+
+    def test_leading_budget_text_splits_before_chinese_day_label(self):
+        itinerary_text, budget_text = self.route_trip.split_budget_section("""两大一小（低于 1.2m），酒店每晚 300 元。
+
+第1天：合肥 到 岳阳
+第二天 岳阳 到 韶山
+""")
+        days = self.route_trip.parse_itinerary(itinerary_text)
+        parsed = self.route_trip.parse_budget_text(budget_text)
+
+        self.assertEqual([day["day"] for day in days], ["D1", "D2"])
+        self.assertEqual(days[0]["legs"], [{"from": "合肥", "to": "岳阳"}])
+        self.assertEqual(parsed["hotel_nightly"], 300.0)
+
+    def test_cli_leading_budget_heading_generates_route_and_budget(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            input_path = Path(tmp) / "input.txt"
+            output_dir = Path(tmp) / "trip-output"
+            input_path.write_text("""费用预算：
+酒店每晚 300 元，餐费每天 100 元。
+
+D1
+合肥 到 岳阳
+D5
+岳阳 到 合肥
+""", encoding="utf-8")
+
+            subprocess.run(
+                [
+                    sys.executable,
+                    str(SCRIPT),
+                    str(input_path),
+                    "--out",
+                    str(output_dir),
+                    "--mode",
+                    "data-only",
+                ],
+                check=True,
+                text=True,
+                capture_output=True,
+            )
+
+            data = json.loads((output_dir / "trip-data.json").read_text(encoding="utf-8"))
+
+            self.assertEqual([day["day"] for day in data["days"]], ["D1", "D5"])
+            self.assertEqual(len([leg for day in data["days"] for leg in day["legs"]]), 2)
+            self.assertEqual(data["budget"]["assumptions"]["trip_days"], 5)
+            self.assertEqual(data["budget"]["category_totals"]["hotel"], 1200.0)
+            self.assertEqual(data["budget"]["category_totals"]["meal"], 500.0)
 
     def test_attraction_components_support_free_ticket_and_per_person_fees(self):
         parsed = self.route_trip.parse_budget_text("""费用预算：
@@ -528,10 +834,86 @@ D4
                 text=True,
                 capture_output=True,
                 env=env,
+                cwd=tmp,
             )
 
             self.assertEqual(result.returncode, 3)
             self.assertIn("requires AMAP_KEY or GAODE_KEY", result.stderr)
+
+    def test_cli_invalid_day_label_returns_clean_error(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            input_path = Path(tmp) / "bad.txt"
+            output_dir = Path(tmp) / "out"
+            input_path.write_text("D0\n合肥 到 岳阳\n", encoding="utf-8")
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(SCRIPT),
+                    str(input_path),
+                    "--out",
+                    str(output_dir),
+                    "--mode",
+                    "estimate",
+                ],
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("Day numbers must start at 1", result.stderr)
+            self.assertNotIn("Traceback", result.stderr)
+            self.assertFalse(output_dir.exists())
+
+    def test_cli_duplicate_day_label_returns_clean_error(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            input_path = Path(tmp) / "bad.txt"
+            output_dir = Path(tmp) / "out"
+            input_path.write_text("D1：合肥 到 岳阳\nD1 岳阳 到 韶山\n", encoding="utf-8")
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(SCRIPT),
+                    str(input_path),
+                    "--out",
+                    str(output_dir),
+                    "--mode",
+                    "estimate",
+                ],
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("Duplicate day label: D1", result.stderr)
+            self.assertNotIn("Traceback", result.stderr)
+            self.assertFalse(output_dir.exists())
+
+    def test_cli_note_only_input_returns_clean_error(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            input_path = Path(tmp) / "bad.txt"
+            output_dir = Path(tmp) / "out"
+            input_path.write_text("D1\n贵阳市区\n", encoding="utf-8")
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(SCRIPT),
+                    str(input_path),
+                    "--out",
+                    str(output_dir),
+                    "--mode",
+                    "estimate",
+                ],
+                text=True,
+                capture_output=True,
+            )
+
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("No route legs found", result.stderr)
+            self.assertNotIn("Traceback", result.stderr)
+            self.assertFalse(output_dir.exists())
 
 
 if __name__ == "__main__":

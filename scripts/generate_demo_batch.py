@@ -7,14 +7,19 @@ import argparse
 import json
 import os
 import random
-import subprocess
-import sys
 from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
 
+from manifest_contract import DEMO_MODE_CHOICES
+from routing import amap_key, load_dotenv
+from trip_pipeline import generate_trip_output, resolve_mode
+
 
 ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_BATCH_COUNT = 20
+DEFAULT_MIN_DAYS = 3
+DEFAULT_MAX_DAYS = 25
 
 ROUTES = [
     ("华东华南海岸长线", ["合肥", "南京", "扬州", "常州", "无锡", "苏州", "上海", "嘉兴", "杭州", "绍兴", "宁波", "台州", "温州", "福州", "泉州", "厦门", "漳州", "汕头", "深圳", "广州", "珠海", "阳江", "湛江", "北海", "南宁", "桂林", "长沙", "武汉", "合肥"]),
@@ -40,6 +45,16 @@ def day_counts(count: int, min_days: int, max_days: int) -> list[int]:
     if count == 20 and min_days <= 3 and max_days >= 30:
         return [3, 4, 5, 6, 7, 8, 10, 11, 12, 14, 15, 17, 18, 19, 20, 22, 24, 26, 28, 30]
     return [round(min_days + index * (max_days - min_days) / max(1, count - 1)) for index in range(count)]
+
+
+def batch_argument_error(count: int, min_days: int, max_days: int) -> str | None:
+    if count <= 0:
+        return "--count must be greater than 0."
+    if min_days <= 0:
+        return "--min-days must be greater than 0."
+    if max_days < min_days:
+        return "--max-days must be greater than or equal to --min-days."
+    return None
 
 
 def build_itinerary(days: int, rng: random.Random) -> tuple[str, int, str]:
@@ -123,16 +138,55 @@ def write_index(base: Path, results: list[dict[str, Any]]) -> None:
     (base / "index.html").write_text(html, encoding="utf-8")
 
 
+def generate_output(
+    itinerary: str,
+    output_dir: Path,
+    title: str,
+    start_date: str,
+    mode: str,
+    key: str | None,
+    use_api: bool,
+) -> dict[str, Any]:
+    try:
+        result = generate_trip_output(
+            itinerary,
+            output_dir,
+            mode=mode,
+            key=key,
+            use_api=use_api,
+            title=title,
+            start_date=start_date,
+        )
+        return {
+            "returncode": result.returncode,
+            "manifest": result.manifest,
+            "stderr": result.stderr,
+            "verification_errors": result.verification_errors,
+            "gate_error": result.gate_error,
+        }
+    except Exception as exc:
+        return {
+            "returncode": 1,
+            "manifest": {},
+            "stderr": str(exc),
+            "verification_errors": [],
+            "gate_error": str(exc),
+        }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Generate dense random demo trips.")
-    parser.add_argument("--count", type=int, default=20)
-    parser.add_argument("--min-days", type=int, default=3)
-    parser.add_argument("--max-days", type=int, default=30)
+    parser.add_argument("--count", type=int, default=DEFAULT_BATCH_COUNT)
+    parser.add_argument("--min-days", type=int, default=DEFAULT_MIN_DAYS)
+    parser.add_argument("--max-days", type=int, default=DEFAULT_MAX_DAYS)
     parser.add_argument("--out", default="trip-output/random-demo")
-    parser.add_argument("--mode", choices=("auto", "estimate", "accurate"), default="auto")
+    parser.add_argument("--mode", choices=DEMO_MODE_CHOICES, default="auto")
     parser.add_argument("--seed", type=int, default=20260731)
     parser.add_argument("--with-png", action="store_true", help="Allow Playwright PNG screenshots. Slower.")
     args = parser.parse_args()
+    error = batch_argument_error(args.count, args.min_days, args.max_days)
+    if error:
+        parser.error(error)
 
     base = ROOT / args.out
     inputs_dir = base / "inputs"
@@ -141,44 +195,48 @@ def main() -> int:
     outputs_dir.mkdir(parents=True, exist_ok=True)
 
     rng = random.Random(args.seed)
-    env = os.environ.copy()
+    load_dotenv(ROOT / ".env")
+    mode, key, use_api = resolve_mode(args.mode, False, amap_key())
+    previous_no_playwright = os.environ.get("SDTP_NO_PLAYWRIGHT")
     if not args.with_png:
-        env["SDTP_NO_PLAYWRIGHT"] = "1"
+        os.environ["SDTP_NO_PLAYWRIGHT"] = "1"
 
     results: list[dict[str, Any]] = []
-    for idx, days in enumerate(day_counts(args.count, args.min_days, args.max_days), start=1):
-        itinerary, city_count, route_name = build_itinerary(days, rng)
-        title = f"批量样例 {idx:02d} · {days}天 · {city_count}城 · {route_name}"
-        input_path = inputs_dir / f"trip-{idx:02d}.txt"
-        output_dir = outputs_dir / f"trip-{idx:02d}"
-        input_path.write_text(itinerary, encoding="utf-8")
-        cmd = [
-            sys.executable,
-            str(ROOT / "scripts" / "route_trip.py"),
-            str(input_path),
-            "--out",
-            str(output_dir),
-            "--title",
-            title,
-            "--start-date",
-            (date(2026, 8, 1) + timedelta(days=idx - 1)).isoformat(),
-            "--mode",
-            args.mode,
-        ]
-        result = subprocess.run(cmd, cwd=ROOT, env=env, text=True, capture_output=True)
-        manifest_path = output_dir / "manifest.json"
-        manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.exists() else {}
-        results.append({
-            "idx": idx,
-            "title": title,
-            "days": days,
-            "unique_cities": city_count,
-            "returncode": result.returncode,
-            "input": str(input_path.relative_to(base)),
-            "output": str(output_dir.relative_to(base)),
-            "manifest": manifest,
-            "stderr": result.stderr,
-        })
+    try:
+        for idx, days in enumerate(day_counts(args.count, args.min_days, args.max_days), start=1):
+            itinerary, city_count, route_name = build_itinerary(days, rng)
+            title = f"批量样例 {idx:02d} · {days}天 · {city_count}城 · {route_name}"
+            input_path = inputs_dir / f"trip-{idx:02d}.txt"
+            output_dir = outputs_dir / f"trip-{idx:02d}"
+            start_date = (date(2026, 8, 1) + timedelta(days=idx - 1)).isoformat()
+            input_path.write_text(itinerary, encoding="utf-8")
+            output_result = generate_output(
+                itinerary,
+                output_dir,
+                title,
+                start_date,
+                mode,
+                key,
+                use_api,
+            )
+            results.append({
+                "idx": idx,
+                "title": title,
+                "days": days,
+                "unique_cities": city_count,
+                "returncode": output_result["returncode"],
+                "input": str(input_path.relative_to(base)),
+                "output": str(output_dir.relative_to(base)),
+                "manifest": output_result["manifest"],
+                "stderr": output_result["stderr"],
+                "verification_errors": output_result["verification_errors"],
+                "gate_error": output_result["gate_error"],
+            })
+    finally:
+        if previous_no_playwright is None:
+            os.environ.pop("SDTP_NO_PLAYWRIGHT", None)
+        else:
+            os.environ["SDTP_NO_PLAYWRIGHT"] = previous_no_playwright
 
     (base / "summary.json").write_text(json.dumps(results, ensure_ascii=False, indent=2), encoding="utf-8")
     write_index(base, results)

@@ -5,9 +5,12 @@ from __future__ import annotations
 
 import argparse
 import os
-import subprocess
-import sys
 from pathlib import Path
+
+from manifest_contract import DEMO_MODE_CHOICES
+from output_reporter import emit_run_report
+from routing import amap_key, load_dotenv
+from trip_pipeline import generate_trip_output, resolve_mode
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -41,32 +44,34 @@ def main() -> int:
     parser.add_argument("--out", default="trip-output", help="Output directory.")
     parser.add_argument("--title", default="Demo 自驾游", help="Trip title.")
     parser.add_argument("--start-date", default="2026-07-17", help="Departure date YYYY-MM-DD.")
-    parser.add_argument("--mode", choices=("auto", "estimate", "accurate"), default=None,
+    parser.add_argument("--mode", choices=DEMO_MODE_CHOICES, default=None,
                         help="Override automatic mode selection.")
     args = parser.parse_args()
 
-    mode = args.mode or ("auto" if key_configured() else "estimate")
-    cmd = [
-        sys.executable,
-        str(ROOT / "scripts" / "route_trip.py"),
-        str(ROOT / args.input),
-        "--out",
-        str(ROOT / args.out),
-        "--title",
-        args.title,
-        "--start-date",
-        args.start_date,
-        "--mode",
-        mode,
-    ]
-    print("Running:", " ".join(cmd), flush=True)
-    result = subprocess.run(cmd, cwd=ROOT)
-    if result.returncode != 0:
-        return result.returncode
+    requested_mode = args.mode or ("auto" if key_configured() else "estimate")
+    input_path = ROOT / args.input
+    if not input_path.exists():
+        print(f"Input file not found: {input_path}")
+        return 2
 
-    html_file = ROOT / args.out / "trip.html"
-    print(f"Open: {html_file}")
-    return 0
+    load_dotenv(ROOT / ".env")
+    mode, key, use_api = resolve_mode(requested_mode, False, amap_key())
+
+    out_dir = ROOT / args.out
+    try:
+        result = generate_trip_output(
+            input_path.read_text(encoding="utf-8"),
+            out_dir,
+            mode=mode,
+            key=key,
+            use_api=use_api,
+            title=args.title,
+            start_date=args.start_date,
+        )
+    except ValueError as exc:
+        print(str(exc))
+        return 2
+    return emit_run_report(result, out_dir, mode, open_path=out_dir / "trip.html")
 
 
 if __name__ == "__main__":

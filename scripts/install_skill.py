@@ -5,36 +5,15 @@ from __future__ import annotations
 
 import argparse
 import shutil
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from skill_layout import copy_skill_contents
 
 
 ROOT = Path(__file__).resolve().parents[1]
 SKILL_NAME = "self-drive-trip-planner"
-
-SKILL_FILES = [
-    "SKILL.md",
-    "requirements.txt",
-    ".env.example",
-]
-
-SKILL_DIRS = [
-    "agents",
-    "examples",
-    "references",
-    "scripts",
-]
-
-
-def copy_tree(src: Path, dst: Path) -> None:
-    ignore = shutil.ignore_patterns(
-        "__pycache__",
-        "*.pyc",
-        ".DS_Store",
-        "package_plugin.py",
-        "check_plugin_package.py",
-        "install_plugin_local.py",
-    )
-    shutil.copytree(src, dst, ignore=ignore)
 
 
 def install_skill(dest_root: Path, overwrite: bool = True) -> Path:
@@ -50,15 +29,7 @@ def install_skill(dest_root: Path, overwrite: bool = True) -> Path:
         shutil.rmtree(target)
     target.mkdir(parents=True, exist_ok=True)
 
-    for rel_path in SKILL_FILES:
-        src = ROOT / rel_path
-        if src.exists():
-            shutil.copy2(src, target / rel_path)
-
-    for rel_path in SKILL_DIRS:
-        src = ROOT / rel_path
-        if src.exists():
-            copy_tree(src, target / rel_path)
+    copy_skill_contents(ROOT, target)
 
     return target
 

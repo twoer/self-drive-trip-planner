@@ -66,7 +66,7 @@ https://github.com/twoer/self-drive-trip-planner/releases/download/v0.6.0/self-d
 
 - `python3 -m unittest discover -s tests`
 - `make package-plugin`
-- `make check-plugin-package`
+- `make check-plugin-package` (validates both the plugin folder and release zip)
 - `make validate-plugin` when the local Codex plugin validator is available
 - Confirm no secrets are committed:
   `rg -n "AMAP_KEY=.*[0-9A-Za-z]{16}|GAODE_KEY=.*[0-9A-Za-z]{16}" . -g '!dist/**' -g '!trip-output/**'`

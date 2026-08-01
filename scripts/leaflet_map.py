@@ -23,6 +23,7 @@ Two public entry points:
 from __future__ import annotations
 
 import json
+import html
 import math
 import os
 import re
@@ -64,6 +65,18 @@ MARKER_COLOR_END = "#d25240"      # red
 MARKER_COLOR_MID = "#2c6bb2"      # blue
 
 MAX_POINTS_PER_LEG = 80  # simplify each leg's polyline to keep HTML small
+
+
+def json_for_script(value: Any) -> str:
+    """Serialize JSON safely for direct embedding inside a ``<script>`` tag."""
+    text = json.dumps(value, ensure_ascii=False)
+    return (
+        text.replace("&", "\\u0026")
+        .replace("<", "\\u003c")
+        .replace(">", "\\u003e")
+        .replace("\u2028", "\\u2028")
+        .replace("\u2029", "\\u2029")
+    )
 
 
 def _simplify_polyline(points: list[list[float]], max_points: int = MAX_POINTS_PER_LEG) -> list[list[float]]:
@@ -238,6 +251,11 @@ def _client_js() -> str:
 
   function durLabel(min){ min=Math.round(min/5)*5; var h=Math.floor(min/60), m=min%60; return h+'h'+(m<10?'0':'')+m+'m'; }
   function distLabel(km){ return Math.round(km/5)*5+'km'; }
+  function escapeHtml(value){
+    return String(value == null ? '' : value).replace(/[&<>"']/g, function(ch){
+      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[ch];
+    });
+  }
   var c = data.colors || {};
   var allLatLng = [];
 
@@ -248,7 +266,7 @@ def _client_js() -> str:
       var color = leg.estimated ? (c.estimate||'#d97036') : (c.real||'#2c6bb2');
       L.polyline(latlngs, { color: '#ffffff', weight: 5, opacity: 0.65 }).addTo(map);
       var line = L.polyline(latlngs, { color: color, weight: 2.5, opacity: 0.95 }).addTo(map);
-      var popup = '<b>'+day.day+' · '+leg.from+' → '+leg.to+'</b><br>'
+      var popup = '<b>'+escapeHtml(day.day)+' · '+escapeHtml(leg.from)+' → '+escapeHtml(leg.to)+'</b><br>'
                 + distLabel(leg.distance_km)+' · '+durLabel(leg.duration_min)+' · ¥'+leg.toll_cny
                 + (leg.estimated ? '<br><span style=\"color:#d97036\">估算数据</span>' : '');
       line.bindPopup(popup);
@@ -266,11 +284,11 @@ def _client_js() -> str:
     var icon = L.divIcon({
       className: 'trip-stop',
       html: '<span class="trip-stop-dot" style="background:'+color+'"></span>'
-          + '<span class="trip-stop-label">'+label+'</span>',
+          + '<span class="trip-stop-label">'+escapeHtml(label)+'</span>',
       iconSize: [10, 10], iconAnchor: [5, 5]
     });
     L.marker([stop.lat, stop.lng], { icon: icon })
-      .addTo(map).bindPopup('<b>'+(stop.day||'')+' '+stop.name+'</b>');
+      .addTo(map).bindPopup('<b>'+escapeHtml((stop.day||'')+' '+stop.name)+'</b>');
   });
 
   if (allLatLng.length) {
@@ -291,7 +309,7 @@ def build_leaflet_snippet(data: dict[str, Any], height: int = 420) -> str:
     inlined as ``window.__MAP_DATA__`` so the page works from ``file://``.
     """
     map_data = build_map_data(data)
-    data_json = json.dumps(map_data, ensure_ascii=False)
+    data_json = json_for_script(map_data)
     client = _client_js()
     # Map height is responsive via CSS class + media queries (wider screens get
     # a taller map). The ``height`` arg is the mobile baseline.
@@ -305,7 +323,8 @@ def build_leaflet_snippet(data: dict[str, Any], height: int = 420) -> str:
   </style>
   <div id="trip-map"></div>
   <script src="{LEAFLET_JS}"></script>
-  <script>window.__MAP_DATA__ = {data_json};</script>
+  <script id="trip-map-data" type="application/json">{data_json}</script>
+  <script>window.__MAP_DATA__ = JSON.parse(document.getElementById('trip-map-data').textContent);</script>
   <script>{client}</script>
 </div>"""
 
@@ -313,7 +332,7 @@ def build_leaflet_snippet(data: dict[str, Any], height: int = 420) -> str:
 def _full_page_html(data: dict[str, Any]) -> str:
     """A standalone full-viewport Leaflet page used for PNG screenshots."""
     map_data = build_map_data(data)
-    data_json = json.dumps(map_data, ensure_ascii=False)
+    data_json = json_for_script(map_data)
     client = _client_js()
     totals = data.get("totals", {})
 
@@ -357,9 +376,14 @@ def _full_page_html(data: dict[str, Any]) -> str:
         dur = _dur(day.get("duration_min", 0))
         dist = (f"{_dist(day.get('distance_km', 0))} · {dur} · ¥{day.get('toll_cny', 0)}"
                 if day.get("legs") else "停留游玩")
-        rows.append(f"<tr><td><span class='d-tag'>{day.get('day', '')}</span></td>"
-                    f"<td class='route'>{day.get('title', '')}</td><td class='metric'>{dist}</td></tr>")
+        day_label = html.escape(str(day.get("day", "")), quote=True)
+        day_title = html.escape(str(day.get("title", "")), quote=True)
+        metric = html.escape(dist, quote=True)
+        rows.append(f"<tr><td><span class='d-tag'>{day_label}</span></td>"
+                    f"<td class='route'>{day_title}</td><td class='metric'>{metric}</td></tr>")
     rows_html = "".join(rows)
+    escaped_title = html.escape(str(title_text), quote=True)
+    escaped_summary = html.escape(summary, quote=True)
 
     return f"""<!DOCTYPE html>
 <html lang="zh-CN"><head><meta charset="UTF-8">
@@ -384,17 +408,18 @@ def _full_page_html(data: dict[str, Any]) -> str:
 <body>
 <div id="trip-map"></div>
 <div class="legend">
-  <h2>{title_text}</h2>
-  <div class="summary">{summary}</div>
+  <h2>{escaped_title}</h2>
+  <div class="summary">{escaped_summary}</div>
   <table>{rows_html}</table>
 </div>
 <script src="{LEAFLET_JS}"></script>
-<script>window.__MAP_DATA__ = {data_json};</script>
+<script id="trip-map-data" type="application/json">{data_json}</script>
+<script>window.__MAP_DATA__ = JSON.parse(document.getElementById('trip-map-data').textContent);</script>
 <script>{client}</script>
 </body></html>"""
 
 
-def _find_playwright_python() -> str | None:
+def find_playwright_python() -> str | None:
     """Return the path of a Python interpreter that can import Playwright.
 
     We probe the current interpreter first (the one running route_trip, where
@@ -435,7 +460,7 @@ def render_route_png(data: dict[str, Any], out_path: Path, width: int = 1600, he
     Returns ``False`` (no exception) when Playwright is unavailable — callers
     treat PNG as optional.
     """
-    py_exe = _find_playwright_python()
+    py_exe = find_playwright_python()
     if not py_exe:
         return False
 
@@ -476,9 +501,10 @@ print("OK")
                 [py_exe, "-c", script],
                 capture_output=True, text=True, timeout=90,
             )
-        except Exception:
-            return False
+        except (OSError, subprocess.SubprocessError) as exc:
+            raise RuntimeError(f"Playwright route-map generation failed: {exc}") from exc
 
-        if "OK" in result.stdout and out_path.exists() and out_path.stat().st_size > 10000:
+        if result.returncode == 0 and "OK" in result.stdout and out_path.exists() and out_path.stat().st_size > 10000:
             return True
-        return False
+        detail = result.stderr.strip() or result.stdout.strip() or f"exit code {result.returncode}"
+        raise RuntimeError(f"Playwright route-map generation failed: {detail}")

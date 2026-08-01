@@ -14,6 +14,8 @@ Environment variables:
 
 - `AMAP_KEY`
 - `GAODE_KEY`
+- `SDTP_ROUTE_CACHE` (optional local JSON cache for successful geocoding and
+  Amap driving-route responses)
 
 Lookup sequence:
 
@@ -21,28 +23,40 @@ Lookup sequence:
 2. Call driving route planning for each adjacent origin/destination pair.
 3. Read distance in meters and convert to kilometers.
 4. Read duration in seconds and convert to minutes.
-5. Read tolls if present. If tolls are absent, mark toll as estimated or unknown.
+5. Read tolls if present. If tolls are absent, calculate the documented
+   per-kilometer estimate and mark the leg as estimated so `toll_cny` remains
+   numeric.
 6. Collect step polylines when available and keep them in JSON for route drawing.
-7. Render the map with **Leaflet + Amap tiles** (see `scripts/leaflet_map.py`):
+7. When `SDTP_ROUTE_CACHE` is set, reuse successful geocoding and route
+   responses from that local JSON file before calling Amap. Do not cache failed
+   lookups, quota errors, estimate fallback metrics, malformed coordinates, or
+   incomplete route objects. Ignore cache files with unknown schema versions.
+   Concurrent writers use a short-lived lock and merge before atomically replacing
+   the cache file, so parallel trip generations do not lose unrelated entries.
+8. Render the map with **Leaflet + Amap tiles** (see `scripts/leaflet_map.py`):
    - The interactive map is embedded in `trip.html` and shows the **real driving
      route** (the polylines from step 5) on top of public Amap raster tiles
      (`webrd0{1-4}.is.autonavi.com`). No web-service key is needed for the
      tiles — only for the routing/geocoding calls above.
    - Each leg is drawn with its own polyline; color reflects data source
      (blue `#2c6bb2` for real API data, orange `#d97036` for estimates). Stops
-     are drawn as circle markers (green start / blue mid / red end) with
-     A/B/C... letters explained in the on-map legend and the HTML overview.
+     are drawn as labeled markers (green start / blue mid / red end) with
+     day labels and place names; stay-only days are folded into matching city
+     labels when possible.
    - `map.fitBounds()` frames the whole route — this replaces the old Amap
      static-map approach, whose auto-fit was unreliable when both `paths` and
      `markers` were present (it squeezed the route into a corner).
    - A shareable `route-map.png` is produced by rendering the same Leaflet
      page headless via **Playwright** and screenshotting it. Playwright is an
-     **optional** dependency: when it is not installed, PNG generation is
-     skipped silently and the interactive HTML map still works.
+     **optional** dependency: when it is not installed or screenshotting fails,
+     a clearly marked `route-map.svg` schematic is generated as the static
+     fallback and the interactive HTML map still works.
 
 Failure handling:
 
-- If geocoding fails, retry with the raw user label plus nearby province/city context when the user provided it.
+- Retry geocoding and driving-route network errors, API failures, empty results,
+  and malformed success responses up to three times with bounded backoff.
+- Preserve the final lookup failure in leg metadata before falling back.
 - If API quota, key, or network fails, do not block HTML generation.
 - Use estimates and schematic SVG only as a preview, mark `estimated: true`, and tell the user to verify.
 

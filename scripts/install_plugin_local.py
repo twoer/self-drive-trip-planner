@@ -10,6 +10,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from check_installed_plugin import DEFAULT_CACHE_ROOT, validate_installed_plugin
 from package_plugin import PLUGIN_NAME, build_plugin
 
 
@@ -68,8 +69,12 @@ def install_plugin(plugin_parent: Path, build_dir: Path) -> Path:
 
     resolved_source = source_plugin.resolve()
     resolved_target = target.resolve()
-    if resolved_target == resolved_source or resolved_source in resolved_target.parents:
-        raise RuntimeError(f"Refusing to install into build output path: {target}")
+    if (
+        resolved_target == resolved_source
+        or resolved_source in resolved_target.parents
+        or resolved_target in resolved_source.parents
+    ):
+        raise RuntimeError(f"Refusing overlapping build and install paths: {source_plugin} and {target}")
 
     if target.exists():
         shutil.rmtree(target)
@@ -78,16 +83,17 @@ def install_plugin(plugin_parent: Path, build_dir: Path) -> Path:
     return target
 
 
-def run_codex_add(plugin_ref: str, skip: bool) -> None:
+def run_codex_add(plugin_ref: str, skip: bool) -> bool:
     if skip:
         print(f"Skipped Codex install. Add later with: codex plugin add {plugin_ref}")
-        return
+        return False
 
     if shutil.which("codex") is None:
         print(f"Codex CLI not found. Marketplace entry is ready; add later with: codex plugin add {plugin_ref}")
-        return
+        return False
 
     subprocess.run(["codex", "plugin", "add", plugin_ref, "--json"], check=True)
+    return True
 
 
 def main() -> int:
@@ -102,10 +108,24 @@ def main() -> int:
     plugin_parent = Path(args.plugin_parent)
     build_dir = Path(args.build_dir)
 
+    build_dir = build_dir.expanduser()
     target = install_plugin(plugin_parent, build_dir)
     marketplace_name = upsert_marketplace_entry(marketplace_path)
     plugin_ref = f"{PLUGIN_NAME}@{marketplace_name}"
-    run_codex_add(plugin_ref, args.skip_codex_add)
+    require_cache = run_codex_add(plugin_ref, args.skip_codex_add)
+    expected_plugin = build_dir / PLUGIN_NAME
+    errors = validate_installed_plugin(
+        target,
+        marketplace_path,
+        DEFAULT_CACHE_ROOT,
+        expected_plugin=expected_plugin,
+        require_cache=require_cache,
+        require_codex_list=require_cache,
+    )
+    if errors:
+        for error in errors:
+            print(f"ERROR: {error}", file=sys.stderr)
+        return 1
 
     print(f"Installed plugin folder: {target.expanduser().resolve()}")
     print(f"Marketplace file: {marketplace_path.expanduser().resolve()}")

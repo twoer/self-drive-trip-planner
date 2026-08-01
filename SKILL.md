@@ -19,13 +19,14 @@ description: Create agent-verifiable self-driving trip outputs from structured i
 4. Generate a normalized `trip-data.json` and `manifest.json`. Read `references/output-contract.md` before changing output files or explaining the manifest.
    - When budget inputs are provided, calculate a rough total budget and write it under `budget`.
    - When no budget inputs are provided, keep `budget.configured=false` and show an activation reminder in the generated cost tab.
+   - The CLI validates the written output directory with `scripts/verify_outputs.py` before reporting success.
 5. Generate an interactive map showing the **real driving route**:
    - Embed a Leaflet map in `trip.html` using Amap raster tiles (no tile key needed); draw each leg's actual polyline from the routing API.
    - Color each leg by data source: blue for real API data, orange for estimates.
-   - Use marker letters (`A`, `B`, `C`, ...) on the map, with start (green) and end (red) highlighted; let `fitBounds` frame the whole route.
+   - Use labeled stop markers with day labels and place names, with start (green) and end (red) highlighted; let `fitBounds` frame the whole route.
    - Keep the map uncluttered: put daily route, duration, toll details in the HTML overview cards and an on-map legend, not as scattered callouts along the route.
-   - Optionally produce `route-map.png` by screenshotting the same Leaflet page with Playwright (an optional dependency); when Playwright is missing, skip the PNG silently — the interactive HTML map still works.
-   - Use the schematic SVG only as a fallback when network/polyline data are unavailable.
+   - Optionally produce `route-map.png` by screenshotting the same Leaflet page with Playwright (an optional dependency); when Playwright is missing or screenshotting fails, generate `route-map.svg` as the static fallback — the interactive HTML map still works.
+   - Treat the schematic SVG as a clearly disclosed static fallback; the embedded Leaflet map remains the primary route view when HTML is generated.
 6. Generate a mobile-first HTML itinerary page inspired by the user's reference style:
    - Header with trip title and route summary.
    - Tabs for route overview, daily itinerary, and cost estimate.
@@ -59,6 +60,13 @@ or:
 export GAODE_KEY="your-gaode-web-service-key"
 ```
 
+Optionally set a local route cache so repeated accurate/demo runs can reuse
+successful Amap geocoding and route responses:
+
+```bash
+export SDTP_ROUTE_CACHE=".zcode/self-drive-trip-planner-routes.json"
+```
+
 If no key is available, still run the script. Keep the generated estimates visibly marked and tell the user they should verify route metrics before booking or departure.
 
 This skill is intentionally text-first. When a user wants to edit a trip, ask for
@@ -82,11 +90,25 @@ D5
 中国天眼 到 安顺
 ```
 
-Also accept `->`, `→`, `回`, `返回`, and multi-stop lines such as `荔波 到 小七孔 到 中国天眼 到 安顺`.
+Also accept `->`, `→`, `回`, `回到`, `返回`, `到达`, `前往`, `去往`,
+`至`, spaced dash connectors such as `合肥 - 岳阳`, and multi-stop lines such
+as `荔波 到 小七孔 到 中国天眼 到 安顺`.
 
 Lines without route connectors, such as `贵阳市区`, are treated as non-driving stay notes for that day. Keep them in `trip-data.json` and the HTML, but do not include them in driving distance, duration, toll, or route-map paths.
 
-Accept a trailing natural-language `费用预算：` section. Do not treat it as a day note. Parse budget details such as:
+Each generated trip must include at least one driving leg. Reject note-only
+inputs with a clean error instead of producing a route output with zero legs.
+
+Day labels must start at `D1`. Reject `D0` or other non-positive day labels
+with a clean error. If note-only text appears before the first explicit day
+label, attach it to that first day; if route lines appear before explicit day
+labels, assign them to an implicit day label that does not collide with explicit
+labels. Reject duplicate explicit day labels with a clean error. Also accept day
+labels with same-line content, such as `D1：合肥 到 岳阳`, `Day2 岳阳 到 韶山`,
+`D3：贵阳市区`, `第1天：合肥 到 岳阳`, or `第二天 岳阳 到 韶山`.
+
+Accept a leading or trailing natural-language `费用预算：` section. Do not treat
+it as a day note. Parse budget details such as:
 
 ```text
 费用预算：
@@ -105,6 +127,8 @@ Budget rules:
 
 - Hotel nights default to trip days minus one.
 - Meal days default to trip day count.
+- Approximate single amounts such as `酒店每晚约300元`, `酒店每晚300元左右`, and `餐费每天约100元` are accepted as configured amounts.
+- Ambiguous hotel, meal, EV price/consumption, ticket, component, or misc-fee ranges such as `300-400 元`, `电价 1.2-1.5 元/度`, or `成人票 100-120 元` are not included in totals; surface them in `budget.warnings` and `manifest.warnings` until the user provides one amount or a CLI override.
 - Adult attraction tickets use full price.
 - Children below 1.2m are free by default.
 - Children at or above 1.2m use half adult price by default.
@@ -112,11 +136,11 @@ Budget rules:
 - Detect known scenic stops such as `小七孔`, `黄果树`, `韶山`, and `中国天眼`; when a scenic stop has no configured ticket/component fee, list it as missing in `budget.missing_attractions` and the `费用` tab. Do not include missing scenic fees in the total.
 - If the user provides only attraction names without prices, browse current official or authoritative pages for ticket/component prices, then add the discovered prices to the budget input. If no reliable source is found, leave the item out of the total and report it as "待核实"; do not invent prices.
 
-Read `references/data-schema.md` when changing the parser, consuming user-provided JSON, or explaining the normalized schema. Read `references/output-contract.md` when changing output files, `manifest.json`, modes, or final reporting behavior.
+Read `references/architecture.md` before changing module boundaries or moving responsibilities between scripts. Read `references/data-schema.md` when changing the parser, consuming user-provided JSON, or explaining the normalized schema. Read `references/output-contract.md` when changing output files, `manifest.json`, modes, or final reporting behavior.
 
 ## Map Service
 
-Prefer Gaode/Amap Web Service for mainland China driving routes because it can return driving distance, duration, toll, and route polyline data. Render maps through the Leaflet helper; treat the old Amap static-map path as historical fallback behavior only. Read `references/map-services.md` before changing the map lookup behavior or adding another provider.
+Prefer Gaode/Amap Web Service for mainland China driving routes because it can return driving distance, duration, toll, and route polyline data. Render maps through the Leaflet helper; do not reintroduce the old Amap static-map/Pillow rendering path. Read `references/map-services.md` before changing the map lookup behavior or adding another provider.
 
 Do not invent precise tolls. If a toll is estimated, mark it as estimated in JSON and in user-facing summaries.
 
@@ -136,6 +160,7 @@ Hard requirements:
 
 Before finishing a trip output task:
 
+- Confirm the CLI printed `Verified: output contract`, or run `python3 scripts/verify_outputs.py <out>` manually for an existing output directory.
 - Confirm every requested leg appears in `trip-data.json`.
 - Confirm each leg has distance, duration, toll, and source metadata.
 - Confirm `manifest.json` exists and every non-null file in `manifest.files` exists.

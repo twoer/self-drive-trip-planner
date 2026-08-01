@@ -6,8 +6,12 @@ from __future__ import annotations
 import argparse
 import json
 import shutil
+import sys
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from skill_layout import copy_skill_contents, copy_tree
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -67,33 +71,6 @@ PLUGIN_JSON = {
 }
 
 
-SKILL_FILES = [
-    "SKILL.md",
-    "requirements.txt",
-    ".env.example",
-]
-
-
-SKILL_DIRS = [
-    "agents",
-    "examples",
-    "references",
-    "scripts",
-]
-
-
-def copy_tree(src: Path, dst: Path) -> None:
-    ignore = shutil.ignore_patterns(
-        "__pycache__",
-        "*.pyc",
-        ".DS_Store",
-        "package_plugin.py",
-        "check_plugin_package.py",
-        "install_plugin_local.py",
-    )
-    shutil.copytree(src, dst, ignore=ignore)
-
-
 def build_plugin(out_dir: Path, zip_path: Path | None = None) -> tuple[Path, Path]:
     plugin_dir = out_dir / PLUGIN_NAME
     if plugin_dir.exists():
@@ -108,15 +85,7 @@ def build_plugin(out_dir: Path, zip_path: Path | None = None) -> tuple[Path, Pat
         encoding="utf-8",
     )
 
-    for rel_path in SKILL_FILES:
-        src = ROOT / rel_path
-        if src.exists():
-            shutil.copy2(src, skill_dir / rel_path)
-
-    for rel_path in SKILL_DIRS:
-        src = ROOT / rel_path
-        if src.exists():
-            copy_tree(src, skill_dir / rel_path)
+    copy_skill_contents(ROOT, skill_dir)
 
     assets_dir = ROOT / "assets"
     if assets_dir.exists():
