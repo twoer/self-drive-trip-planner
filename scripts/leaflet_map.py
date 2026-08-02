@@ -49,6 +49,12 @@ STOP_MARKER_CSS = """
 }
 """
 
+ROUTE_FOCUS_CSS = """
+.route-focus-mask {
+  position: absolute; left: 0; top: 0; z-index: 350; pointer-events: none;
+}
+"""
+
 LEAFLET_VERSION = "1.9.4"
 LEAFLET_CSS = f"https://unpkg.com/leaflet@LEAFLET_VERSION/dist/leaflet.css".replace("LEAFLET_VERSION", LEAFLET_VERSION)
 LEAFLET_JS = f"https://unpkg.com/leaflet@LEAFLET_VERSION/dist/leaflet.js".replace("LEAFLET_VERSION", LEAFLET_VERSION)
@@ -66,6 +72,8 @@ MARKER_COLOR_MID = "#2c6bb2"      # blue
 
 MAX_POINTS_PER_LEG = 80  # simplify each leg's polyline to keep HTML small
 SHARE_CREDIT = "by Self-Drive Trip Planner · github.com/twoer/self-drive-trip-planner"
+ROUTE_FOCUS_CORRIDOR_PX = 44
+ROUTE_FOCUS_OUTSIDE_OPACITY = 0.44
 
 
 def json_for_script(value: Any) -> str:
@@ -233,6 +241,10 @@ def build_map_data(data: dict[str, Any]) -> dict[str, Any]:
             "end": MARKER_COLOR_END,
             "mid": MARKER_COLOR_MID,
         },
+        "focus": {
+            "corridor_width_px": ROUTE_FOCUS_CORRIDOR_PX,
+            "outside_opacity": ROUTE_FOCUS_OUTSIDE_OPACITY,
+        },
     }
 
 
@@ -258,7 +270,9 @@ def _client_js() -> str:
     });
   }
   var c = data.colors || {};
+  var focus = data.focus || {};
   var allLatLng = [];
+  var routeLatLngs = [];
 
   data.days.forEach(function(day){
     day.legs.forEach(function(leg){
@@ -272,8 +286,77 @@ def _client_js() -> str:
                 + (leg.estimated ? '<br><span style=\"color:#d97036\">估算数据</span>' : '');
       line.bindPopup(popup);
       allLatLng = allLatLng.concat(latlngs);
+      routeLatLngs.push(latlngs);
     });
   });
+
+  function installRouteFocusMask(){
+    if (!routeLatLngs.length) return;
+    var ns = 'http://www.w3.org/2000/svg';
+    var maskId = 'trip-route-focus-cutout';
+    var svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('class', 'route-focus-mask');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.setAttribute('preserveAspectRatio', 'none');
+
+    var defs = document.createElementNS(ns, 'defs');
+    var mask = document.createElementNS(ns, 'mask');
+    mask.setAttribute('id', maskId);
+    mask.setAttribute('maskUnits', 'userSpaceOnUse');
+    var maskBase = document.createElementNS(ns, 'rect');
+    maskBase.setAttribute('fill', '#ffffff');
+    mask.appendChild(maskBase);
+
+    var corridorWidth = Number(focus.corridor_width_px) || 44;
+    var focusPaths = routeLatLngs.map(function(latlngs){
+      var path = document.createElementNS(ns, 'path');
+      path.setAttribute('fill', 'none');
+      path.setAttribute('stroke', '#000000');
+      path.setAttribute('stroke-width', String(corridorWidth));
+      path.setAttribute('stroke-linecap', 'round');
+      path.setAttribute('stroke-linejoin', 'round');
+      mask.appendChild(path);
+      return { path: path, latlngs: latlngs };
+    });
+    defs.appendChild(mask);
+    svg.appendChild(defs);
+
+    var dim = document.createElementNS(ns, 'rect');
+    var outsideOpacity = Number(focus.outside_opacity);
+    dim.setAttribute('fill', '#f8fafc');
+    dim.setAttribute('fill-opacity', String(Number.isFinite(outsideOpacity) ? outsideOpacity : 0.44));
+    dim.setAttribute('mask', 'url(#' + maskId + ')');
+    svg.appendChild(dim);
+    var focusPane = map.createPane('routeFocusPane');
+    focusPane.style.zIndex = '350';
+    focusPane.style.pointerEvents = 'none';
+    focusPane.appendChild(svg);
+
+    function updateRouteFocusMask(){
+      var size = map.getSize();
+      var topLeft = map.containerPointToLayerPoint([0, 0]);
+      L.DomUtil.setPosition(svg, topLeft);
+      svg.setAttribute('width', String(size.x));
+      svg.setAttribute('height', String(size.y));
+      svg.setAttribute('viewBox', '0 0 ' + size.x + ' ' + size.y);
+      mask.setAttribute('width', String(size.x));
+      mask.setAttribute('height', String(size.y));
+      maskBase.setAttribute('width', String(size.x));
+      maskBase.setAttribute('height', String(size.y));
+      dim.setAttribute('width', String(size.x));
+      dim.setAttribute('height', String(size.y));
+      focusPaths.forEach(function(entry){
+        var commands = entry.latlngs.map(function(latlng, index){
+          var point = map.latLngToContainerPoint(latlng);
+          return (index ? 'L' : 'M') + point.x.toFixed(1) + ' ' + point.y.toFixed(1);
+        });
+        entry.path.setAttribute('d', commands.join(' '));
+      });
+    }
+
+    map.on('move zoom resize viewreset', updateRouteFocusMask);
+    updateRouteFocusMask();
+  }
 
   // Stops as labeled markers (dot + permanent name label), color-coded by role.
   data.stops.forEach(function(stop, i){
@@ -297,6 +380,7 @@ def _client_js() -> str:
   } else {
     map.setView([28.5, 111.5], 6);
   }
+  installRouteFocusMask();
   window.__MAP_READY__ = true;
 })();
 """
@@ -318,6 +402,7 @@ def build_leaflet_snippet(data: dict[str, Any], height: int = 420) -> str:
   <link rel="stylesheet" href="{LEAFLET_CSS}">
   <style>
 {STOP_MARKER_CSS}
+{ROUTE_FOCUS_CSS}
   #trip-map {{ height: {height}px; width: 100%; border-radius: 8px; border: 1px solid #dce3ed; background: #f6f8fa; }}
   @media (min-width: 768px) {{ #trip-map {{ height: {max(height, 480)}px; }} }}
   @media (min-width: 1024px) {{ #trip-map {{ height: {max(height, 560)}px; }} }}
@@ -410,6 +495,7 @@ def _full_page_html(data: dict[str, Any]) -> str:
     border:1px solid rgba(220,227,237,.92);border-radius:6px;color:#596575;
     box-shadow:0 1px 4px rgba(0,0,0,.10);font-size:11px;font-weight:600;white-space:nowrap;}}
   {STOP_MARKER_CSS}
+  {ROUTE_FOCUS_CSS}
 </style></head>
 <body>
 <div id="trip-map"></div>

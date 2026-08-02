@@ -69,6 +69,8 @@ business rules that are likely to change.
 - `scripts/leaflet_map.py`
   - Compact map-data projection for Leaflet.
   - Interactive map snippet and optional Playwright PNG screenshot.
+  - Responsive route-focus mask that preserves nearby map context while
+    de-emphasizing labels, roads, and boundaries outside the route corridor.
   - Client-side HTML escaping for map labels and popups.
 - `scripts/output_assets.py`
   - SVG schematic fallback route rendering.

@@ -85,6 +85,54 @@ class LeafletMapTests(unittest.TestCase):
         self.assertIn(self.leaflet_map.SHARE_CREDIT, page)
         self.assertIn('class="share-credit"', page)
 
+    def test_route_focus_mask_dims_only_outside_the_route_corridor(self):
+        data = {
+            "title": "Focused Map",
+            "totals": {"distance_km": 1.0, "duration_min": 1, "toll_cny": 0},
+            "days": [
+                {
+                    "day": "D1",
+                    "title": "合肥 → 岳阳",
+                    "distance_km": 1.0,
+                    "duration_min": 1,
+                    "toll_cny": 0,
+                    "estimated": False,
+                    "legs": [
+                        {
+                            "from": "合肥",
+                            "to": "岳阳",
+                            "distance_km": 1.0,
+                            "duration_min": 1,
+                            "toll_cny": 0,
+                            "estimated": False,
+                            "origin": {"lng": 117.0, "lat": 31.0},
+                            "destination": {"lng": 118.0, "lat": 32.0},
+                            "polyline": [[117.0, 31.0], [118.0, 32.0]],
+                        }
+                    ],
+                }
+            ],
+        }
+
+        map_data = self.leaflet_map.build_map_data(data)
+        snippet = self.leaflet_map.build_leaflet_snippet(data)
+
+        self.assertEqual(
+            map_data["focus"],
+            {
+                "corridor_width_px": self.leaflet_map.ROUTE_FOCUS_CORRIDOR_PX,
+                "outside_opacity": self.leaflet_map.ROUTE_FOCUS_OUTSIDE_OPACITY,
+            },
+        )
+        self.assertIn("setAttribute('class', 'route-focus-mask')", snippet)
+        self.assertIn("installRouteFocusMask", snippet)
+        self.assertIn("map.createPane('routeFocusPane')", snippet)
+        self.assertIn("map.latLngToContainerPoint", snippet)
+        self.assertIn("L.DomUtil.setPosition", snippet)
+        self.assertIn("svg.setAttribute('width', String(size.x))", snippet)
+        self.assertIn("svg.setAttribute('height', String(size.y))", snippet)
+        self.assertIn("pointer-events: none", snippet)
+
     def test_route_png_preserves_browser_failure_details(self):
         with tempfile.TemporaryDirectory() as tmp:
             output = Path(tmp) / "route-map.png"
