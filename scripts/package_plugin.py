@@ -20,7 +20,7 @@ PLUGIN_NAME = "self-drive-trip-planner"
 
 PLUGIN_JSON = {
     "name": PLUGIN_NAME,
-    "version": "0.7.0",
+    "version": "0.7.1",
     "description": "Generate agent-verifiable Chinese self-drive trip plans with route data, budgets, HTML, share images, and manifests.",
     "author": {
         "name": "twoer",
