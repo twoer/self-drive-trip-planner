@@ -65,6 +65,7 @@ MARKER_COLOR_END = "#d25240"      # red
 MARKER_COLOR_MID = "#2c6bb2"      # blue
 
 MAX_POINTS_PER_LEG = 80  # simplify each leg's polyline to keep HTML small
+SHARE_CREDIT = "by Self-Drive Trip Planner · github.com/twoer/self-drive-trip-planner"
 
 
 def json_for_script(value: Any) -> str:
@@ -384,6 +385,7 @@ def _full_page_html(data: dict[str, Any]) -> str:
     rows_html = "".join(rows)
     escaped_title = html.escape(str(title_text), quote=True)
     escaped_summary = html.escape(summary, quote=True)
+    escaped_credit = html.escape(SHARE_CREDIT, quote=True)
 
     return f"""<!DOCTYPE html>
 <html lang="zh-CN"><head><meta charset="UTF-8">
@@ -403,6 +405,10 @@ def _full_page_html(data: dict[str, Any]) -> str:
   .d-tag{{display:inline-block;background:#2c6bb2;color:#fff;border-radius:5px;
     padding:0 6px;font-size:10px;margin-right:5px;font-weight:600;}}
   .metric{{color:#b95c24;font-size:10px;}}
+  .share-credit{{position:absolute;right:12px;bottom:12px;z-index:1000;display:inline-flex;
+    align-items:center;min-height:26px;padding:0 9px;background:rgba(255,255,255,.84);
+    border:1px solid rgba(220,227,237,.92);border-radius:6px;color:#596575;
+    box-shadow:0 1px 4px rgba(0,0,0,.10);font-size:11px;font-weight:600;white-space:nowrap;}}
   {STOP_MARKER_CSS}
 </style></head>
 <body>
@@ -412,6 +418,7 @@ def _full_page_html(data: dict[str, Any]) -> str:
   <div class="summary">{escaped_summary}</div>
   <table>{rows_html}</table>
 </div>
+<div class="share-credit">{escaped_credit}</div>
 <script src="{LEAFLET_JS}"></script>
 <script id="trip-map-data" type="application/json">{data_json}</script>
 <script>window.__MAP_DATA__ = JSON.parse(document.getElementById('trip-map-data').textContent);</script>

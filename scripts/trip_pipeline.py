@@ -13,6 +13,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from budget import build_budget, ensure_budget, parse_budget_text, split_budget_section
+from budget_image import generate_budget_summary_image
 from html_renderer import generate_html, parse_start_date
 from itinerary_parser import parse_itinerary
 from manifest_contract import API_CAPABLE_MODES, GENERATED_OUTPUT_FILES, KEY_REQUIRED_MODES, build_manifest, has_accuracy_failure
@@ -71,7 +72,7 @@ def default_output_dir(mode: str, out: str | None) -> Path:
 
 
 def clear_generated_metadata(data: dict[str, Any]) -> None:
-    for key in ("map", "map_png_error", "map_svg_error", "pdf_error"):
+    for key in ("map", "map_png_error", "map_svg_error", "budget_image_png_error", "pdf_error"):
         data.pop(key, None)
 
 
@@ -204,6 +205,7 @@ def write_outputs_in_place(
     ensure_budget(data)
     clear_generated_metadata(data)
     map_file = None
+    budget_image_file = None
     html_file = None
     pdf_file = None
     if mode != "data-only":
@@ -212,10 +214,11 @@ def write_outputs_in_place(
         # when we serialize trip-data.json below so downstream consumers know
         # which map file exists and whether it is a fallback.
         map_file = generate_route_map(data, out_dir, key)
+        budget_image_file = generate_budget_summary_image(data, out_dir)
     if mode != "data-only":
         html_file = "index.html" if mode == "publish-demo" else "trip.html"
         html_path = out_dir / html_file
-        generate_html(data, html_path, map_file)
+        generate_html(data, html_path, map_file, budget_image_file)
         if pdf:
             pdf_file = "trip.pdf"
             try:
@@ -228,7 +231,16 @@ def write_outputs_in_place(
     elif pdf:
         data["pdf_error"] = "Data-only mode skipped HTML, so PDF output was not generated."
     (out_dir / "trip-data.json").write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    manifest = build_manifest(data, mode, out_dir, key, html_file, map_file, pdf_file)
+    manifest = build_manifest(
+        data,
+        mode,
+        out_dir,
+        key,
+        html_file,
+        map_file,
+        pdf_file,
+        budget_image_file,
+    )
     (out_dir / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return manifest
 

@@ -82,6 +82,8 @@ class LeafletMapTests(unittest.TestCase):
 
         self.assertNotIn(malicious, page)
         self.assertIn("&lt;/script&gt;&lt;img", page)
+        self.assertIn(self.leaflet_map.SHARE_CREDIT, page)
+        self.assertIn('class="share-credit"', page)
 
     def test_route_png_preserves_browser_failure_details(self):
         with tempfile.TemporaryDirectory() as tmp:

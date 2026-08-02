@@ -12,6 +12,7 @@
     "manifest": "manifest.json",
     "html": "index.html",
     "map_image": "route-map.png",
+    "budget_image": "budget-summary.png",
     "pdf": null
   },
   "map": {

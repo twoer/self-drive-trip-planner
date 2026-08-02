@@ -33,6 +33,7 @@ REQUIRED_SKILL_FILES = [
     "scripts/trip_pipeline.py",
     "scripts/routing.py",
     "scripts/budget.py",
+    "scripts/budget_image.py",
     "scripts/manifest_contract.py",
     "scripts/leaflet_map.py",
     "scripts/html_renderer.py",

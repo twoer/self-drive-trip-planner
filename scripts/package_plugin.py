@@ -20,8 +20,8 @@ PLUGIN_NAME = "self-drive-trip-planner"
 
 PLUGIN_JSON = {
     "name": PLUGIN_NAME,
-    "version": "0.6.0",
-    "description": "Generate agent-verifiable Chinese self-drive trip plans with route data, HTML, maps, and manifests.",
+    "version": "0.7.0",
+    "description": "Generate agent-verifiable Chinese self-drive trip plans with route data, budgets, HTML, share images, and manifests.",
     "author": {
         "name": "twoer",
         "email": "zhangkun_net@hotmail.com",
@@ -42,11 +42,12 @@ PLUGIN_JSON = {
     "skills": "./skills/",
     "interface": {
         "displayName": "Self-Drive Trip Planner",
-        "shortDescription": "Generate verifiable Chinese road-trip JSON, HTML, route maps, and manifests.",
+        "shortDescription": "Generate verifiable Chinese road-trip data, maps, budget images, and manifests.",
         "longDescription": (
             "Self-Drive Trip Planner turns compact D1/D2 Chinese road-trip text into "
             "normalized JSON, a standalone mobile-friendly itinerary page, an interactive "
-            "route map, optional PNG/SVG route images, and a machine-readable manifest. "
+            "route map, optional PNG/SVG route images, an article-ready budget summary image, "
+            "and a machine-readable manifest. "
             "It can use Gaode/Amap route data when AMAP_KEY or GAODE_KEY is configured, "
             "or clearly marked estimates for no-key previews."
         ),

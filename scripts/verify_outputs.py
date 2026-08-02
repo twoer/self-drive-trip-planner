@@ -142,7 +142,12 @@ class OutputHTMLInspector(HTMLParser):
             self.map_data_chunks.append(data)
 
 
-def verify_html_output(path: Path, map_file: str, errors: list[str]) -> Any:
+def verify_html_output(
+    path: Path,
+    map_file: str,
+    budget_image_file: str | None,
+    errors: list[str],
+) -> Any:
     try:
         html = path.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError) as exc:
@@ -171,6 +176,14 @@ def verify_html_output(path: Path, map_file: str, errors: list[str]) -> Any:
             errors.append(f"manifest.files.html contains invalid #trip-map-data JSON: {exc}")
     if map_file not in inspector.links and f"./{map_file}" not in inspector.links:
         errors.append(f"manifest.files.html must link to the current map asset: {map_file}")
+    if (
+        budget_image_file
+        and budget_image_file not in inspector.links
+        and f"./{budget_image_file}" not in inspector.links
+    ):
+        errors.append(
+            f"manifest.files.html must link to the current budget image asset: {budget_image_file}"
+        )
     return embedded_map_data
 
 
@@ -195,6 +208,40 @@ def verify_map_asset(path: Path, map_file: str, errors: list[str]) -> None:
             errors.append("route-map.svg root element must be svg")
         if not list(root):
             errors.append("route-map.svg must contain rendered map elements")
+
+
+def verify_budget_image_asset(path: Path, budget_image_file: str, errors: list[str]) -> None:
+    if budget_image_file == "budget-summary.png":
+        try:
+            header = path.read_bytes()[:24]
+        except OSError as exc:
+            errors.append(f"manifest.files.budget_image is not readable: {exc}")
+            return
+        if header[:8] != b"\x89PNG\r\n\x1a\n":
+            errors.append("budget-summary.png must have a valid PNG signature")
+            return
+        if len(header) < 24 or header[12:16] != b"IHDR":
+            errors.append("budget-summary.png must contain a valid PNG IHDR header")
+            return
+        dimensions = (int.from_bytes(header[16:20], "big"), int.from_bytes(header[20:24], "big"))
+        if dimensions != (3200, 2000):
+            errors.append(
+                f"budget-summary.png dimensions are {dimensions[0]}x{dimensions[1]}, expected 3200x2000"
+            )
+        return
+
+    if budget_image_file == "budget-summary.svg":
+        try:
+            root = ElementTree.parse(path).getroot()
+        except (OSError, ElementTree.ParseError) as exc:
+            errors.append(f"budget-summary.svg must be valid XML: {exc}")
+            return
+        if root.tag.rsplit("}", 1)[-1] != "svg":
+            errors.append("budget-summary.svg root element must be svg")
+        if root.get("width") != "1600" or root.get("height") != "1000":
+            errors.append("budget-summary.svg dimensions must be 1600x1000")
+        if not list(root):
+            errors.append("budget-summary.svg must contain rendered elements")
 
 
 def verify_pdf_asset(path: Path, errors: list[str]) -> None:
@@ -258,6 +305,8 @@ def verify_manifest_schema(manifest: dict[str, Any], errors: list[str]) -> None:
 
 
 def verify_manifest_files_contract(files: dict[str, Any], mode: Any, errors: list[str]) -> None:
+    for field in sorted(MANIFEST_FILE_FIELDS - files.keys()):
+        errors.append(f"manifest.files missing required field: {field}")
     for field in files:
         if field not in MANIFEST_FILE_FIELDS:
             errors.append(f"manifest.files has unsupported field: {field}")
@@ -286,6 +335,13 @@ def verify_manifest_files_contract(files: dict[str, Any], mode: Any, errors: lis
         if map_image not in ("route-map.png", "route-map.svg"):
             errors.append("manifest.files.map_image must be route-map.png or route-map.svg")
 
+    budget_image = files.get("budget_image")
+    if mode == "data-only":
+        if budget_image is not None:
+            errors.append("manifest.files.budget_image must be null in data-only mode")
+    elif budget_image not in (None, "budget-summary.png", "budget-summary.svg"):
+        errors.append("manifest.files.budget_image must be budget-summary.png, budget-summary.svg, or null")
+
     pdf = files.get("pdf")
     if mode == "data-only" and pdf is not None:
         errors.append("manifest.files.pdf must be null in data-only mode")
@@ -303,7 +359,7 @@ def verify_trip_data_schema(data: dict[str, Any], errors: list[str]) -> None:
     if start_date is not None and (not isinstance(start_date, str) or not is_iso_date(start_date)):
         errors.append("trip-data.json.start_date must be null or an ISO date string YYYY-MM-DD")
 
-    for field in ("map_png_error", "map_svg_error", "pdf_error"):
+    for field in ("map_png_error", "map_svg_error", "budget_image_png_error", "pdf_error"):
         if field in data and not is_non_empty_string(data[field]):
             errors.append(f"trip-data.json.{field} must be a non-empty string when present")
 
@@ -959,6 +1015,16 @@ def verify_manifest_data_consistency(
         errors.append("manifest.budget must match trip-data.json budget")
     if data.get("pdf_error") and files.get("pdf"):
         errors.append("manifest.files.pdf must be null when trip-data.json contains pdf_error")
+    budget = data.get("budget") if isinstance(data.get("budget"), dict) else {}
+    budget_image_eligible = bool(budget.get("configured") and budget.get("items"))
+    budget_image_file = files.get("budget_image")
+    if mode == "data-only" or not budget_image_eligible:
+        if budget_image_file is not None:
+            errors.append("manifest.files.budget_image must be null when no visual budget image is eligible")
+    elif budget_image_file not in ("budget-summary.png", "budget-summary.svg"):
+        errors.append("configured budget items require manifest.files.budget_image in visual output modes")
+    if data.get("budget_image_png_error") and budget_image_file == "budget-summary.png":
+        errors.append("manifest.files.budget_image must not be PNG when budget PNG generation failed")
 
     verify_warning_coverage(data, legs, list(warnings), files, mode, errors)
 
@@ -1038,11 +1104,23 @@ def verify_warning_coverage(
     verify_derived_warning(warnings, any(leg.get("lookup_error") for leg in legs), "Map lookup errors occurred", errors)
     verify_derived_warning(warnings, bool(data.get("map_png_error")), "PNG map generation failed", errors)
     verify_derived_warning(warnings, bool(data.get("map_svg_error")), "SVG map generation failed", errors)
+    verify_derived_warning(
+        warnings,
+        bool(data.get("budget_image_png_error")),
+        "Budget summary PNG generation failed",
+        errors,
+    )
     verify_derived_warning(warnings, bool(data.get("pdf_error")), "PDF generation failed", errors)
     verify_derived_warning(
         warnings,
         bool(data.get("map", {}).get("fallback")) and mode != "data-only",
         "Static route image fell back",
+        errors,
+    )
+    verify_derived_warning(
+        warnings,
+        files.get("budget_image") == "budget-summary.svg",
+        "Budget summary image fell back to SVG",
         errors,
     )
     verify_derived_warning(
@@ -1092,6 +1170,7 @@ def verify_output_dir(out_dir: Path) -> list[str]:
     data_path = manifest_file_path(out_dir, files.get("data"), "data", errors)
     html_path = manifest_file_path(out_dir, files.get("html"), "html", errors)
     map_path = manifest_file_path(out_dir, files.get("map_image"), "map_image", errors)
+    budget_image_path = manifest_file_path(out_dir, files.get("budget_image"), "budget_image", errors)
     pdf_path = manifest_file_path(out_dir, files.get("pdf"), "pdf", errors)
 
     mode = manifest.get("mode")
@@ -1102,9 +1181,16 @@ def verify_output_dir(out_dir: Path) -> list[str]:
         if map_path is None:
             errors.append("non-data-only output must include manifest.files.map_image")
         if html_path is not None and html_path.is_file() and isinstance(files.get("map_image"), str):
-            embedded_map_data = verify_html_output(html_path, files["map_image"], errors)
+            embedded_map_data = verify_html_output(
+                html_path,
+                files["map_image"],
+                files.get("budget_image"),
+                errors,
+            )
         if map_path is not None and map_path.is_file() and isinstance(files.get("map_image"), str):
             verify_map_asset(map_path, files["map_image"], errors)
+        if budget_image_path is not None and budget_image_path.is_file() and isinstance(files.get("budget_image"), str):
+            verify_budget_image_asset(budget_image_path, files["budget_image"], errors)
         if pdf_path is not None and pdf_path.is_file():
             verify_pdf_asset(pdf_path, errors)
     else:
@@ -1112,6 +1198,8 @@ def verify_output_dir(out_dir: Path) -> list[str]:
             errors.append("data-only output must not include manifest.files.html")
         if map_path is not None:
             errors.append("data-only output must not include manifest.files.map_image")
+        if budget_image_path is not None:
+            errors.append("data-only output must not include manifest.files.budget_image")
         if pdf_path is not None:
             errors.append("data-only output must not include manifest.files.pdf")
 

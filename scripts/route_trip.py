@@ -42,6 +42,12 @@ from budget import (
     trip_day_count,
     unit_money_label,
 )
+from budget_image import (
+    budget_image_eligible,
+    generate_budget_summary_image,
+    generate_budget_summary_svg,
+    render_budget_summary_png,
+)
 import leaflet_map
 from html_renderer import (
     _round_to_step,

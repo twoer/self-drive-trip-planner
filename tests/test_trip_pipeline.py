@@ -96,6 +96,7 @@ D2
             self.assertTrue((out_dir / "manifest.json").is_file())
             self.assertIsNone(manifest["files"]["html"])
             self.assertIsNone(manifest["files"]["map_image"])
+            self.assertIsNone(manifest["files"]["budget_image"])
 
     def test_write_outputs_removes_stale_files_when_reusing_output_dir(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -107,7 +108,15 @@ D2
                 title="Reusable Output",
                 use_api=False,
             )
-            for filename in ("trip.html", "index.html", "route-map.png", "route-map.svg", "trip.pdf"):
+            for filename in (
+                "trip.html",
+                "index.html",
+                "route-map.png",
+                "route-map.svg",
+                "budget-summary.png",
+                "budget-summary.svg",
+                "trip.pdf",
+            ):
                 (out_dir / filename).write_text("stale", encoding="utf-8")
 
             manifest = self.trip_pipeline.write_outputs(data, out_dir, key=None, mode="data-only")
@@ -118,6 +127,8 @@ D2
             self.assertFalse((out_dir / "index.html").exists())
             self.assertFalse((out_dir / "route-map.png").exists())
             self.assertFalse((out_dir / "route-map.svg").exists())
+            self.assertFalse((out_dir / "budget-summary.png").exists())
+            self.assertFalse((out_dir / "budget-summary.svg").exists())
             self.assertFalse((out_dir / "trip.pdf").exists())
 
     def test_write_outputs_preserves_previous_output_when_generation_fails(self):
@@ -232,6 +243,7 @@ D2
             self.assertTrue(any("PDF generation failed" in warning for warning in first_manifest["warnings"]))
             self.assertIsNone(second_manifest["map"])
             self.assertIsNone(second_manifest["files"]["map_image"])
+            self.assertIsNone(second_manifest["files"]["budget_image"])
             self.assertNotIn("map", data_only)
             self.assertNotIn("map_png_error", data_only)
             self.assertNotIn("map_svg_error", data_only)

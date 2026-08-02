@@ -11,6 +11,7 @@
 - 支持高德真实路线：距离、时长、过路费、路线点位来自高德 Web 服务
 - 支持无 key 预览：没有地图 key 时会用估算模式，并在 `manifest.json` 里明确标记
 - 支持费用预算：电车补能、住宿、餐饮、景点门票、摆渡车、保险等
+- 支持费用头图：有费用明细时自动生成文章用费用总览图，并在费用 Tab 提供下载入口
 - 支持 PDF 导出：安装 Playwright 后可生成 PDF
 - 适合 Agent 集成：每次运行都会写入 `manifest.json`，方便下游检查文件、警告和数据来源
 
@@ -226,6 +227,7 @@ D10
 - 识别到 `小七孔`、`黄果树`、`韶山`、`中国天眼` 等景区但没有配置价格时，会在费用页显示 `待补景点费用`
 - 待补景点费用只做提醒，不会计入总费用
 - 如果完全没有费用输入，费用 tab 会显示“费用计算未启用”的激活提醒
+- 费用有已计算明细时，会额外生成 16:10 的文章头图 `budget-summary.png`（3200×2000），集中展示行程规模、总预算、费用构成、主要明细和待补景点费用；无 Playwright 时回退为 1600×1000 SVG
 
 等价 CLI 参数示例：
 
@@ -328,6 +330,13 @@ python3 -m playwright install chromium
 
 没有 Playwright 时，会生成 `route-map.svg` 作为静态 fallback，交互式 HTML 地图不受影响。
 
+`route-map.png`、`route-map.svg`、`budget-summary.png` 和
+`budget-summary.svg` 会在右下角统一显示项目署名：
+
+```text
+by Self-Drive Trip Planner · github.com/twoer/self-drive-trip-planner
+```
+
 ## API Key 和安全说明
 
 不要提交 API key。请使用环境变量或本地 `.env`：
@@ -364,6 +373,7 @@ make pages-demo
 - `docs/trip-data.json`
 - `docs/manifest.json`
 - `docs/route-map.png`
+- `docs/budget-summary.png`
 - `docs/.nojekyll`
 
 ## 架构说明
@@ -375,6 +385,7 @@ make pages-demo
 - `scripts/trip_pipeline.py`：mode/key 解析、预算合并、路线生成、文件输出和契约校验
 - `scripts/routing.py`：Amap provider、估算 fallback、可选路由缓存和路线汇总
 - `scripts/budget.py`：自然语言预算解析、票价规则和费用计算
+- `scripts/budget_image.py`：独立文章费用总览图的 SVG/PNG 生成
 - `scripts/manifest_contract.py`：`manifest.json`、warnings 和准确模式检查
 - `scripts/leaflet_map.py`：Leaflet 地图数据、交互地图和 PNG 截图
 - `scripts/html_renderer.py`：移动端行程 HTML 渲染

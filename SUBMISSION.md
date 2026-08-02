@@ -6,7 +6,7 @@ Use this file as the copy/paste source when preparing an external plugin or mark
 
 - Name: Self-Drive Trip Planner
 - Plugin ID: `self-drive-trip-planner`
-- Version: `0.6.0`
+- Version: `0.7.0`
 - Developer: twoer
 - Category: Productivity
 - Repository: https://github.com/twoer/self-drive-trip-planner
@@ -17,11 +17,11 @@ Use this file as the copy/paste source when preparing an external plugin or mark
 
 ## Short Description
 
-Generate verifiable Chinese road-trip JSON, HTML, route maps, and manifests.
+Generate verifiable Chinese road-trip data, route maps, budget images, and manifests.
 
 ## Long Description
 
-Self-Drive Trip Planner turns compact D1/D2 Chinese road-trip text into normalized JSON, a standalone mobile-friendly itinerary page, an interactive route map, optional PNG/SVG route images, and a machine-readable manifest. It can use Gaode/Amap route data when `AMAP_KEY` or `GAODE_KEY` is configured, or clearly marked estimates for no-key previews.
+Self-Drive Trip Planner turns compact D1/D2 Chinese road-trip text into normalized JSON, a standalone mobile-friendly itinerary page, an interactive route map, optional PNG/SVG route images, an article-ready budget summary image, and a machine-readable manifest. It can use Gaode/Amap route data when `AMAP_KEY` or `GAODE_KEY` is configured, or clearly marked estimates for no-key previews.
 
 ## Starter Prompts
 
@@ -58,9 +58,9 @@ Self-Drive Trip Planner turns compact D1/D2 Chinese road-trip text into normaliz
 
 ## Release Asset
 
-After publishing `v0.6.0`, download the plugin package:
+After publishing `v0.7.0`, download the plugin package:
 
-https://github.com/twoer/self-drive-trip-planner/releases/download/v0.6.0/self-drive-trip-planner-plugin.zip
+https://github.com/twoer/self-drive-trip-planner/releases/download/v0.7.0/self-drive-trip-planner-plugin.zip
 
 ## Pre-Submission Checklist
 

@@ -223,6 +223,8 @@ D3
             self.assertEqual(manifest["files"]["data"], "trip-data.json")
             self.assertEqual(manifest["files"]["html"], "trip.html")
             self.assertEqual(manifest["files"]["map_image"], map_file)
+            self.assertIn(manifest["files"]["budget_image"], ("budget-summary.png", "budget-summary.svg"))
+            self.assertTrue((output_dir / manifest["files"]["budget_image"]).is_file())
             self.assertEqual(manifest["data_source"], "estimated")
             self.assertGreaterEqual(len(manifest["warnings"]), 1)
 
@@ -237,6 +239,10 @@ D3
             self.assertNotIn(100.0, [leg["distance_km"] for leg in legs])
             html = (output_dir / "trip.html").read_text(encoding="utf-8")
             self.assertIn("费用预估", html)
+            self.assertIn('href="./budget-summary.', html)
+            self.assertIn("下载费用清单图", html)
+            self.assertIn(" download>", html)
+            self.assertNotIn("html2canvas", html)
             self.assertIn("<span>总费用</span>", html)
             self.assertIn("含过路费等", html)
             self.assertIn("¥1.5/度", html)
@@ -287,6 +293,9 @@ D2
             html = (output_dir / "trip.html").read_text(encoding="utf-8")
 
             self.assertFalse(data["budget"]["configured"])
+            self.assertIsNone(
+                json.loads((output_dir / "manifest.json").read_text(encoding="utf-8"))["files"]["budget_image"]
+            )
             self.assertIn("费用计算未启用", html)
             self.assertIn("你可以这样说", html)
             self.assertIn("<span>过路费</span>", html)
@@ -341,6 +350,7 @@ D2
             self.assertEqual(budget["category_totals"]["meal"], 1000.0)
             self.assertEqual(budget["category_totals"]["attraction"], 260.0)
             self.assertEqual(manifest["budget"]["total_cny"], budget["total_cny"])
+            self.assertIn(manifest["files"]["budget_image"], ("budget-summary.png", "budget-summary.svg"))
             toll_item = next(item for item in budget["items"] if item["category"] == "toll")
             energy_item = next(item for item in budget["items"] if item["category"] == "vehicle_energy")
             self.assertIn("全程", toll_item["detail"])
@@ -760,9 +770,11 @@ D4
             data = json.loads((output_dir / "trip-data.json").read_text(encoding="utf-8"))
             manifest = json.loads((output_dir / "manifest.json").read_text(encoding="utf-8"))
             self.assertTrue((output_dir / "route-map.svg").is_file())
+            self.assertTrue((output_dir / "budget-summary.svg").is_file())
             self.assertEqual(data["map"]["source"], "fallback-svg")
             self.assertTrue(data["map"]["fallback"])
             self.assertEqual(manifest["files"]["map_image"], "route-map.svg")
+            self.assertEqual(manifest["files"]["budget_image"], "budget-summary.svg")
 
     def test_data_only_mode_writes_only_json_contract(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -789,10 +801,13 @@ D4
             self.assertFalse((output_dir / "trip.html").exists())
             self.assertFalse((output_dir / "route-map.png").exists())
             self.assertFalse((output_dir / "route-map.svg").exists())
+            self.assertFalse((output_dir / "budget-summary.png").exists())
+            self.assertFalse((output_dir / "budget-summary.svg").exists())
             manifest = json.loads((output_dir / "manifest.json").read_text(encoding="utf-8"))
             self.assertEqual(manifest["mode"], "data-only")
             self.assertIsNone(manifest["files"]["html"])
             self.assertIsNone(manifest["files"]["map_image"])
+            self.assertIsNone(manifest["files"]["budget_image"])
 
     def test_publish_demo_writes_index_html_contract(self):
         import os

@@ -52,6 +52,22 @@ class OutputAssetsTests(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError, "browser launch failed"):
                     self.output_assets.generate_pdf(html_path, pdf_path)
 
+    def test_route_svg_fallback_contains_share_credit(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "route-map.svg"
+            data = {
+                "title": "Fallback",
+                "days": [],
+                "totals": {"distance_km": 0.0, "duration_min": 0, "toll_cny": 0.0},
+            }
+
+            self.output_assets.generate_svg(data, path)
+
+            self.assertIn(
+                self.output_assets.leaflet_map.SHARE_CREDIT,
+                path.read_text(encoding="utf-8"),
+            )
+
     def test_route_map_fallback_records_playwright_failure(self):
         with tempfile.TemporaryDirectory() as tmp:
             out_dir = Path(tmp)

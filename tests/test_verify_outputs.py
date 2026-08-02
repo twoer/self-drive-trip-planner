@@ -80,6 +80,8 @@ def sample_warnings(mode: str = "estimate", map_image: str | None = "route-map.s
         warnings.append("Data-only mode skipped HTML and route image generation.")
     elif map_image == "route-map.svg":
         warnings.append("Static route image fell back to schematic SVG; the HTML still contains the interactive route map.")
+    if mode != "data-only":
+        warnings.append("Budget summary image fell back to SVG.")
     return warnings
 
 
@@ -97,6 +99,7 @@ def sample_manifest(mode: str = "estimate", html: str | None = "trip.html", map_
             "manifest": "manifest.json",
             "html": html,
             "map_image": map_image,
+            "budget_image": None if mode == "data-only" else "budget-summary.svg",
             "pdf": None,
         },
         "map": {"file": map_image, "source": source, "fallback": map_image == "route-map.svg"} if map_image else None,
@@ -125,12 +128,17 @@ class VerifyOutputsTests(unittest.TestCase):
             (out_dir / "trip.html").write_text(
                 '<html><head><link rel="stylesheet" href="leaflet.css"></head><body>'
                 '<div id="trip-map"></div><a href="./route-map.svg">map</a>'
+                '<a href="./budget-summary.svg">budget</a>'
                 f'<script src="leaflet.js"></script><script id="trip-map-data" type="application/json">{map_data_json}</script>'
                 '<script>window.__MAP_DATA__ = JSON.parse(document.getElementById("trip-map-data").textContent);</script>'
                 '</body></html>',
                 encoding="utf-8",
             )
             (out_dir / "route-map.svg").write_text("<svg><path d=\"M0 0\"/></svg>", encoding="utf-8")
+            (out_dir / "budget-summary.svg").write_text(
+                '<svg width="1600" height="1000"><rect width="1600" height="1000"/></svg>',
+                encoding="utf-8",
+            )
 
             self.assertEqual(self.verify_outputs.verify_output_dir(out_dir), [])
 
@@ -401,11 +409,13 @@ class VerifyOutputsTests(unittest.TestCase):
             )
             (out_dir / "trip.html").write_text("<html>stale</html>", encoding="utf-8")
             (out_dir / "route-map.svg").write_text("<svg></svg>", encoding="utf-8")
+            (out_dir / "budget-summary.png").write_bytes(b"stale")
 
             errors = self.verify_outputs.verify_output_dir(out_dir)
 
             self.assertIn("stale generated file is not referenced by manifest.files: trip.html", errors)
             self.assertIn("stale generated file is not referenced by manifest.files: route-map.svg", errors)
+            self.assertIn("stale generated file is not referenced by manifest.files: budget-summary.png", errors)
 
     def test_non_pdf_output_rejects_stale_pdf_file(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -447,6 +457,27 @@ class VerifyOutputsTests(unittest.TestCase):
             errors = []
             self.verify_outputs.verify_pdf_asset(path, errors)
             self.assertEqual(errors, [])
+
+    def test_budget_png_asset_requires_fixed_dimensions(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "budget-summary.png"
+            png_header = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR"
+            path.write_bytes(png_header + (1600).to_bytes(4, "big") + (1000).to_bytes(4, "big"))
+            errors = []
+
+            self.verify_outputs.verify_budget_image_asset(path, path.name, errors)
+
+            self.assertIn("budget-summary.png dimensions are 1600x1000, expected 3200x2000", errors)
+
+    def test_budget_svg_asset_requires_fixed_dimensions(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "budget-summary.svg"
+            path.write_text('<svg width="800" height="500"><rect/></svg>', encoding="utf-8")
+            errors = []
+
+            self.verify_outputs.verify_budget_image_asset(path, path.name, errors)
+
+            self.assertIn("budget-summary.svg dimensions must be 1600x1000", errors)
 
     def test_pdf_error_cannot_coexist_with_pdf_file(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -9,7 +9,8 @@ Each run builds the current mode's generated files in a same-filesystem staging
 directory, then replaces the previous generated-file set. If generation or
 publication fails, the previous set is preserved or restored. The verifier
 rejects stale generated files such as an old `trip.html`, `index.html`,
-`route-map.png`, `route-map.svg`, or `trip.pdf` when those files are not
+`route-map.png`, `route-map.svg`, `budget-summary.png`, `budget-summary.svg`,
+or `trip.pdf` when those files are not
 referenced by `manifest.files`.
 
 The verifier also enforces that every `trip-data.json` day has a non-empty,
@@ -57,6 +58,9 @@ paths: data and manifest files must be `trip-data.json` and `manifest.json`;
 standard modes use `trip.html`; `publish-demo` uses `index.html`; map images
 must be `route-map.png` or `route-map.svg`; and PDF output, when present, must
 be `trip.pdf`.
+When a visual mode has a configured budget with item rows, `budget_image` must
+reference `budget-summary.png` or `budget-summary.svg`. It must be `null` for
+unconfigured budgets, empty item lists, and `data-only` mode.
 Map metadata is a closed state contract: `leaflet-playwright-screenshot`
 requires `route-map.png` and `fallback=false`; `fallback-svg` requires
 `route-map.svg` and `fallback=true`. The same map object must appear in both
@@ -67,9 +71,16 @@ before the SVG fallback is published.
 If the SVG fallback also fails, `trip-data.json.map_svg_error` preserves that
 failure and the manifest surfaces both causes. Generated error fields must be
 non-empty strings when present.
+The editorial budget asset uses a fixed 16:10 canvas. The preferred PNG is
+3200x2000 for article publishing; if Playwright is unavailable or fails, the
+1600x1000 SVG is retained. A Playwright failure is preserved in
+`trip-data.json.budget_image_png_error`, and manifest warnings disclose both
+the failure and SVG fallback.
 For non-data-only output, the verifier also checks that the HTML contains the
 Leaflet map container, Leaflet script and stylesheet, embedded map data, and a
-link to the current static map asset. PNG files must have a PNG signature; SVG
+link to the current static map asset. When a budget summary exists, the cost tab
+links directly to that pre-generated article asset for download; it does not
+capture the cost-tab DOM. PNG files must have a PNG signature; SVG
 fallbacks must parse as SVG XML and contain rendered elements.
 The embedded map data is structured JSON and must exactly match the compact
 Leaflet projection rebuilt from `trip-data.json`.
@@ -87,6 +98,7 @@ Modes `auto`, `estimate`, and `accurate` write:
   trip.html
   manifest.json
   route-map.png | route-map.svg
+  budget-summary.png | budget-summary.svg (when budget items are configured)
   trip.pdf (optional, only with --pdf)
 ```
 
@@ -95,6 +107,10 @@ Modes `auto`, `estimate`, and `accurate` write:
 - `manifest.json`: machine-readable run summary, file contract, data source, counts, totals, and warnings.
 - `route-map.png`: optional Playwright screenshot of the Leaflet map when available.
 - `route-map.svg`: schematic fallback when PNG generation is unavailable.
+- `budget-summary.png`: standalone editorial trip-scale and cost overview for
+  article headers, generated at 3200x2000.
+- `budget-summary.svg`: 1600x1000 fallback when budget PNG rendering is
+  unavailable.
 - `trip.pdf`: optional PDF export when `--pdf` is requested and Playwright is available.
   The verifier checks its PDF header and end-of-file marker; a run carrying
   `pdf_error` cannot also publish a PDF reference.
@@ -109,6 +125,7 @@ docs/
   index.html
   manifest.json
   route-map.png | route-map.svg
+  budget-summary.png | budget-summary.svg (when budget items are configured)
 ```
 
 ## Data-Only Mode
@@ -122,6 +139,7 @@ Mode `data-only` writes:
 ```
 
 It skips HTML and map image generation.
+It also skips budget summary image generation.
 It also rejects PDF references because PDF rendering requires generated HTML.
 
 ## Manifest Shape
@@ -139,6 +157,7 @@ It also rejects PDF references because PDF rendering requires generated HTML.
     "manifest": "manifest.json",
     "html": "trip.html",
     "map_image": "route-map.png",
+    "budget_image": "budget-summary.png",
     "pdf": "trip.pdf"
   },
   "map": {
@@ -193,5 +212,7 @@ After running the script:
 - Read `manifest.data_source`, `manifest.source_counts`, and `manifest.warnings`.
 - Summarize `manifest.totals` and the output directory.
 - If `manifest.budget.configured` is true, summarize `manifest.budget.total_cny`; otherwise mention that the cost tab contains an activation reminder.
+- If `manifest.files.budget_image` is non-null, report it as the article-ready
+  cost overview asset; disclose SVG fallback warnings.
 - If `manifest.warnings` is non-empty, include the warnings in the final response.
 - If `mode` is `accurate` or `publish-demo`, treat a non-zero CLI exit code as a failed run even when partial files exist.

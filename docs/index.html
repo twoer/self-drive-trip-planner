@@ -158,7 +158,11 @@ svg { stroke-width: 2; }
 .budget-summary { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .budget-kicker { color: var(--text2); font-size: 12px; }
 .budget-total { margin-top: 3px; color: var(--primary); font-size: 30px; font-weight: 900; line-height: 1.1; }
+.budget-summary-side { display: grid; justify-items: end; gap: 8px; min-width: 0; }
 .budget-note { max-width: 210px; color: var(--text2); font-size: 11px; text-align: right; }
+.budget-image-link { min-height: 34px; padding: 0 10px; border: 1px solid var(--primary); border-radius: 6px; color: var(--primary); background: #FFFFFF; text-decoration: none; font-size: 12px; font-weight: 800; white-space: nowrap; }
+.budget-image-link svg { width: 16px; height: 16px; flex-shrink: 0; }
+.budget-image-link:focus-visible { outline: 2px solid color-mix(in srgb, var(--primary) 60%, white); outline-offset: 2px; }
 .budget-list { display: grid; gap: 8px; }
 .budget-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; }
 .budget-left { min-width: 0; }
@@ -650,7 +654,10 @@ svg { stroke-width: 2; }
     <div class="budget-kicker">费用预估</div>
     <div class="budget-total">¥9186</div>
   </div>
-  <div class="budget-note">按当前输入参数粗略计算，实际价格请以预订和现场为准。</div>
+  <div class="budget-summary-side">
+    <div class="budget-note">按当前输入参数粗略计算，实际价格请以预订和现场为准。</div>
+    <a class="budget-image-link ui-icon-text" href="./budget-summary.png" download><i data-lucide="image-down"></i><span>下载费用清单图</span></a>
+  </div>
 </div>
 <div class="budget-list"><div class="budget-row">
   <div class="budget-left">

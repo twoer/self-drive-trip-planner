@@ -22,6 +22,8 @@ GENERATED_OUTPUT_FILES = (
     "index.html",
     "route-map.png",
     "route-map.svg",
+    "budget-summary.png",
+    "budget-summary.svg",
     "trip.pdf",
 )
 MANIFEST_CONTRACT_FIELDS = frozenset(
@@ -40,7 +42,7 @@ MANIFEST_CONTRACT_FIELDS = frozenset(
         "warnings",
     }
 )
-MANIFEST_FILE_FIELDS = frozenset({"data", "manifest", "html", "map_image", "pdf"})
+MANIFEST_FILE_FIELDS = frozenset({"data", "manifest", "html", "map_image", "budget_image", "pdf"})
 
 
 def unique_warnings(values: list[Any]) -> list[str]:
@@ -61,7 +63,13 @@ def source_counts(data: dict[str, Any]) -> dict[str, int]:
     return counts
 
 
-def output_warnings(data: dict[str, Any], mode: str, key: str | None, map_file: str | None) -> list[str]:
+def output_warnings(
+    data: dict[str, Any],
+    mode: str,
+    key: str | None,
+    map_file: str | None,
+    budget_image_file: str | None = None,
+) -> list[str]:
     warnings: list[str] = []
     legs = [leg for day in data["days"] for leg in day["legs"]]
     if mode in ("auto", "data-only") and not key:
@@ -78,12 +86,16 @@ def output_warnings(data: dict[str, Any], mode: str, key: str | None, map_file: 
         warnings.append(f'PNG map generation failed: {data["map_png_error"]}')
     if data.get("map_svg_error"):
         warnings.append(f'SVG map generation failed: {data["map_svg_error"]}')
+    if data.get("budget_image_png_error"):
+        warnings.append(f'Budget summary PNG generation failed: {data["budget_image_png_error"]}')
     if data.get("pdf_error"):
         warnings.append(f'PDF generation failed: {data["pdf_error"]}')
     if data.get("budget", {}).get("warnings"):
         warnings.extend(str(warning) for warning in data["budget"]["warnings"])
     if data.get("map", {}).get("fallback"):
         warnings.append("Static route image fell back to schematic SVG; the HTML still contains the interactive route map.")
+    if budget_image_file == "budget-summary.svg":
+        warnings.append("Budget summary image fell back to SVG.")
     if mode != "data-only" and not map_file:
         warnings.append("No static route image was generated.")
     if mode == "data-only":
@@ -99,6 +111,7 @@ def build_manifest(
     html_file: str | None,
     map_file: str | None,
     pdf_file: str | None,
+    budget_image_file: str | None = None,
 ) -> dict[str, Any]:
     counts = source_counts(data)
     if not counts:
@@ -113,6 +126,7 @@ def build_manifest(
         "manifest": "manifest.json",
         "html": html_file if html_file and (out_dir / html_file).exists() else None,
         "map_image": map_file,
+        "budget_image": budget_image_file,
         "pdf": pdf_file if pdf_file and (out_dir / pdf_file).exists() else None,
     }
     totals = data.get("totals", {})
@@ -134,7 +148,7 @@ def build_manifest(
             "legs": len(legs),
             "estimated_legs": sum(1 for leg in legs if leg.get("estimated")),
         },
-        "warnings": output_warnings(data, mode, key, map_file),
+        "warnings": output_warnings(data, mode, key, map_file, budget_image_file),
     }
 
 

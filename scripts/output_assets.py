@@ -129,6 +129,7 @@ def generate_svg(data: dict[str, Any], path: Path) -> None:
     title = escape(data["title"])
     totals = data["totals"]
     subtitle = escape(f'总里程 {totals["distance_km"]}km · 总时长 {duration_label(int(totals["duration_min"]))} · 过路费 {money_label(totals["toll_cny"])}')
+    share_credit = escape(leaflet_map.SHARE_CREDIT)
     svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}">
   <rect width="{width}" height="{height}" fill="#F6F8FA"/>
   <rect x="36" y="34" width="{width - 72}" height="{height - 68}" rx="28" fill="#FFFFFF" stroke="#E8EDF3"/>
@@ -136,7 +137,8 @@ def generate_svg(data: dict[str, Any], path: Path) -> None:
   <text x="72" y="124" font-size="20" fill="#6B7280">{subtitle}</text>
   <g>{''.join(segment_svg)}</g>
   <g>{''.join(stop_svg)}</g>
-  <text x="{width - 72}" y="{height - 58}" text-anchor="end" font-size="17" fill="#8A929C">橙色线路为估算数据</text>
+  <text x="72" y="{height - 58}" font-size="17" fill="#8A929C">橙色线路为估算数据</text>
+  <text x="{width - 72}" y="{height - 58}" text-anchor="end" font-size="15" fill="#687587">{share_credit}</text>
 </svg>
 '''
     path.write_text(svg, encoding="utf-8")
