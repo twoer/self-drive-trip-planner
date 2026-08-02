@@ -21,6 +21,16 @@
 
 这个公开 demo 使用 `examples/simple-trip.txt` 生成，路线数据来自高德 / Amap API。仓库只提交生成后的静态 HTML、JSON 和图片，不保存任何 API key。
 
+## 生成效果
+
+**路线总览图**
+
+[![Self-Drive Trip Planner 路线总览图](docs/route-map.png)](docs/route-map.png)
+
+**费用清单图**
+
+[![Self-Drive Trip Planner 费用清单图](docs/budget-summary.png)](docs/budget-summary.png)
+
 ## 30 秒快速开始
 
 ```bash
