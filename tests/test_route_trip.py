@@ -187,7 +187,7 @@ D3
         self.assertEqual(len([stop for stop in stops if stop["name"] == "合肥"]), 1)
         self.assertTrue(all(stop.get("lng") and stop.get("lat") for stop in stops))
 
-    def test_cli_no_api_generates_expected_files(self):
+    def test_cli_default_fixture_generates_expected_contract(self):
         with tempfile.TemporaryDirectory() as tmp:
             output_dir = Path(tmp) / "trip-output"
             result = subprocess.run(
@@ -226,6 +226,10 @@ D3
             self.assertIn(manifest["files"]["budget_image"], ("budget-summary.png", "budget-summary.svg"))
             self.assertTrue((output_dir / manifest["files"]["budget_image"]).is_file())
             self.assertEqual(manifest["data_source"], "estimated")
+            self.assertEqual(
+                manifest["counts"],
+                {"days": 10, "driving_days": 8, "legs": 13, "estimated_legs": 13},
+            )
             self.assertGreaterEqual(len(manifest["warnings"]), 1)
 
             self.assertEqual(len(data["days"]), 10)
@@ -233,10 +237,88 @@ D3
             self.assertEqual(data["days"][8]["title"], "重庆市区")
 
             legs = [leg for day in data["days"] for leg in day["legs"]]
+            self.assertEqual(
+                [(leg["from"], leg["to"]) for leg in legs],
+                [
+                    ("合肥", "岳阳"),
+                    ("岳阳", "韶山"),
+                    ("韶山", "凤凰古城"),
+                    ("凤凰古城", "荔波"),
+                    ("荔波", "小七孔"),
+                    ("小七孔", "中国天眼"),
+                    ("中国天眼", "安顺"),
+                    ("安顺", "黄果树"),
+                    ("黄果树", "贵阳"),
+                    ("贵阳", "茅台镇红军桥"),
+                    ("茅台镇红军桥", "遵义会议遗址"),
+                    ("遵义会议遗址", "重庆"),
+                    ("重庆", "合肥"),
+                ],
+            )
+            self.assertEqual(
+                [len(day["legs"]) for day in data["days"]],
+                [1, 1, 1, 1, 3, 2, 0, 3, 0, 1],
+            )
+            self.assertEqual(data["days"][6]["notes"], ["贵阳市区"])
+            self.assertEqual(data["days"][8]["notes"], ["重庆市区"])
             self.assertTrue(all(leg["origin"] and leg["destination"] for leg in legs))
             chongqing_to_hefei = next(leg for leg in legs if leg["from"] == "重庆" and leg["to"] == "合肥")
             self.assertGreater(chongqing_to_hefei["distance_km"], 1000)
             self.assertNotIn(100.0, [leg["distance_km"] for leg in legs])
+
+            budget = data["budget"]
+            assumptions = budget["assumptions"]
+            self.assertEqual(
+                assumptions["passengers"],
+                {
+                    "adults": 2,
+                    "children_under_1_2m": 1,
+                    "children_over_1_2m": 0,
+                },
+            )
+            self.assertEqual(
+                assumptions["vehicle"],
+                {
+                    "type": "ev",
+                    "kwh_price_cny": 1.5,
+                    "kwh_per_100km": 18.0,
+                    "estimated_kwh": round(data["totals"]["distance_km"] * 18 / 100, 1),
+                },
+            )
+            self.assertEqual(assumptions["hotel"], {"nightly_cny": 300.0, "nights": 9})
+            self.assertEqual(assumptions["meal"], {"daily_cny": 200.0, "days": 10})
+            self.assertEqual(budget["category_totals"]["hotel"], 2700.0)
+            self.assertEqual(budget["category_totals"]["meal"], 2000.0)
+            self.assertEqual(budget["category_totals"]["attraction"], 1040.0)
+            self.assertEqual(budget["category_totals"]["toll"], data["totals"]["toll_cny"])
+            self.assertEqual(
+                budget["category_totals"]["vehicle_energy"],
+                round(data["totals"]["distance_km"] * 18 / 100 * 1.5, 2),
+            )
+            attraction_amounts = {}
+            for item in budget["items"]:
+                if item["category"] == "attraction":
+                    attraction_amounts[item["label"]] = (
+                        attraction_amounts.get(item["label"], 0) + item["amount_cny"]
+                    )
+            self.assertEqual(
+                attraction_amounts,
+                {
+                    "天眼景区": 180.0,
+                    "凤凰古城": 0.0,
+                    "黄果树瀑布": 500.0,
+                    "小七孔": 360.0,
+                },
+            )
+            self.assertEqual(
+                [item["name"] for item in budget["missing_attractions"]],
+                ["韶山景区"],
+            )
+            self.assertEqual(budget["warnings"], [])
+            self.assertEqual(
+                budget["total_cny"],
+                round(sum(budget["category_totals"].values()), 2),
+            )
             html = (output_dir / "trip.html").read_text(encoding="utf-8")
             self.assertIn("费用预估", html)
             self.assertIn('href="./budget-summary.', html)
@@ -258,9 +340,7 @@ D3
             self.assertNotIn("budget-chips", html)
             self.assertNotIn("示例：--vehicle-type", html)
             self.assertIn("data-tab=\"budget\"", html)
-            self.assertTrue(data["budget"]["configured"])
-            self.assertEqual(data["budget"]["assumptions"]["hotel"]["nights"], 9)
-            self.assertEqual(data["budget"]["assumptions"]["meal"]["days"], 10)
+            self.assertTrue(budget["configured"])
             self.assertIn("budget", manifest)
 
     def test_cli_without_budget_shows_activation_reminder(self):
